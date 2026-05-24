@@ -156,6 +156,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .metric-val{font-size:20px;font-weight:600;margin-bottom:2px}
 .metric-label{font-size:10px;color:var(--muted)}
 .pipeline-row{display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;margin-bottom:6px}
+.inbox-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:7px;transition:all .15s;cursor:pointer}
+.inbox-card:hover{border-color:var(--accent)}
+.inbox-card.unread{border-left:3px solid var(--accent)}
+.inbox-card.urgency-hot{border-left:3px solid var(--red)}
+.inbox-card.urgency-warm{border-left:3px solid var(--amber)}
+.inbox-meta{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+.inbox-sender{font-size:12px;font-weight:600}
+.inbox-subject{font-size:13px;font-weight:500;margin-bottom:4px;line-height:1.4}
+.inbox-summary{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:6px}
+.inbox-date{font-size:10px;color:var(--muted);margin-left:auto}
+.urg-badge{font-size:9px;padding:2px 7px;border-radius:8px;font-weight:700}
+.urg-hot{background:rgba(255,79,106,.15);color:var(--red)}
+.urg-warm{background:rgba(245,166,35,.15);color:var(--amber)}
+.urg-info{background:rgba(107,114,153,.1);color:var(--muted)}
 </style>
 </head>
 <body>
@@ -173,6 +187,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="nav-item" onclick="showPage('board')" id="nav-board"><span class="nav-icon">▦</span>Task board<span class="nav-count" id="cnt-board">0</span></div>
       <div class="nav-item" onclick="showPage('outreach')" id="nav-outreach"><span class="nav-icon">◉</span>Outreach dashboard</div>
       <div class="nav-item" onclick="showPage('pipeline')" id="nav-pipeline"><span class="nav-icon">◈</span>Pipeline<span class="nav-count" id="cnt-pipeline">0</span></div>
+      <div class="nav-item" onclick="showPage('inbox')" id="nav-inbox"><span class="nav-icon">✉</span>Inbox<span class="nav-count hot" id="cnt-inbox">0</span></div>
     </div>
     <div class="nav-section">
       <div class="nav-label">Filter</div>
@@ -309,6 +324,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         <div id="pipelineRows"><div class="empty">No entries yet. Log replies and surveys as they come in.</div></div>
       </div>
     </div>
+    <!-- INBOX -->
+    <div class="page" id="page-inbox">
+      <div class="page-header">
+        <div><div class="page-title">Inbox</div><div class="page-sub" id="inboxSyncedAt">Synced by Claude this session</div></div>
+        <div class="btn-group">
+          <button class="btn" onclick="filterInbox('all',this)" id="ibf-all" style="background:var(--surface2)">All</button>
+          <button class="btn" onclick="filterInbox('hot',this)">🔥 Hot</button>
+          <button class="btn" onclick="filterInbox('warm',this)">⚡ Warm</button>
+          <button class="btn" onclick="filterInbox('unread',this)">Unread</button>
+        </div>
+      </div>
+      <div id="inboxList"><div class="empty">Loading inbox...</div></div>
+    </div>
+
   </div>
 </div>
 
@@ -810,8 +839,8 @@ async function fetchApolloData(){
   const btn=document.getElementById('refreshBtn');
   if(btn){btn.textContent='Loading...';btn.disabled=true;}
   try{
-    const res=await fetch('https://api.apollo.io/v1/emailer_campaigns/search',{method:'POST',headers:{'Content-Type':'application/json','Cache-Control':'no-cache','X-Api-Key':APOLLO_KEY},body:JSON.stringify({per_page:25,page:1})});
-    if(!res.ok) throw new Error('Apollo '+res.status);
+    const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'apollo'}),headers:{'Content-Type':'text/plain'}});
+    if(!res.ok) throw new Error('GAS '+res.status);
     const data=await res.json();
     const seqs=data.emailer_campaigns||[];
     renderSequenceRows(seqs);
@@ -932,6 +961,67 @@ async function deletePipelineEntry(id){
 // UTILS
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
 
+// INBOX
+let inboxEmails = [];
+let inboxFilter = 'all';
+
+async function loadInbox() {
+  try {
+    const res = await fetch(GAS_URL, {method:'POST', body:JSON.stringify({action:'read',sheet:'Inbox'}), headers:{'Content-Type':'text/plain'}});
+    const data = await res.json();
+    inboxEmails = data.data || [];
+    renderInbox();
+    updateInboxCount();
+    const el = document.getElementById('inboxSyncedAt');
+    if(inboxEmails.length && inboxEmails[0].syncedAt) {
+      el.textContent = 'Last synced by Claude: ' + new Date(inboxEmails[0].syncedAt).toLocaleString('en-GB');
+    }
+  } catch(e) {
+    document.getElementById('inboxList').innerHTML = '<div class="empty">Could not load inbox. Check connection.</div>';
+  }
+}
+
+function updateInboxCount() {
+  const hot = inboxEmails.filter(e => e.urgency === 'hot' || (e.isRead === 'FALSE' || e.isRead === false)).length;
+  const badge = document.getElementById('cnt-inbox');
+  if(badge) badge.textContent = hot;
+  // Alert on today page
+  const hotEmails = inboxEmails.filter(e => e.urgency === 'hot');
+  const area = document.getElementById('alertArea');
+  if(hotEmails.length && area && !area.innerHTML) {
+    area.innerHTML = '<div class="alert-banner"><div class="alert-icon">✉</div><div class="alert-text"><strong>' + hotEmails.length + ' email' + (hotEmails.length > 1 ? 's' : '') + ' need' + (hotEmails.length === 1 ? 's' : '') + ' immediate attention.</strong> ' + hotEmails.map(e => e.sender).join(', ') + '</div><div class="alert-action" onclick="showPage('inbox')">View inbox →</div></div>';
+  }
+}
+
+function filterInbox(f, btn) {
+  inboxFilter = f;
+  document.querySelectorAll('#page-inbox .btn').forEach(b => b.style.background = '');
+  if(btn) btn.style.background = 'var(--surface2)';
+  renderInbox();
+}
+
+function renderInbox() {
+  const el = document.getElementById('inboxList');
+  if(!el) return;
+  let emails = inboxEmails;
+  if(inboxFilter === 'hot') emails = emails.filter(e => e.urgency === 'hot');
+  else if(inboxFilter === 'warm') emails = emails.filter(e => e.urgency === 'warm');
+  else if(inboxFilter === 'unread') emails = emails.filter(e => e.isRead === 'FALSE' || e.isRead === false);
+  if(!emails.length) { el.innerHTML = '<div class="empty">No emails in this view.</div>'; return; }
+  el.innerHTML = emails.map(e => {
+    const unread = e.isRead === 'FALSE' || e.isRead === false;
+    const urgClass = e.urgency === 'hot' ? 'urgency-hot' : e.urgency === 'warm' ? 'urgency-warm' : '';
+    const badge = e.urgency === 'hot' ? '<span class="urg-badge urg-hot">HOT</span>' : e.urgency === 'warm' ? '<span class="urg-badge urg-warm">WARM</span>' : '<span class="urg-badge urg-info">INFO</span>';
+    const date = e.received ? new Date(e.received).toLocaleDateString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+    return '<div class="inbox-card ' + urgClass + (unread ? ' unread' : '') + '" onclick="window.open('' + e.webLink + '', '_blank')">' +
+      '<div class="inbox-meta">' + badge + '<span class="inbox-sender">' + (e.sender || '') + '</span><span class="inbox-date">' + date + '</span></div>' +
+      '<div class="inbox-subject">' + (e.subject || '') + '</div>' +
+      (e.summary ? '<div class="inbox-summary">' + String(e.summary).slice(0, 160) + (e.summary.length > 160 ? '...' : '') + '</div>' : '') +
+      '<div style="font-size:10px;color:var(--accent);margin-top:4px">Click to open in Outlook ↗</div>' +
+      '</div>';
+  }).join('');
+}
+
 document.getElementById('modalBg').addEventListener('click',function(e){if(e.target===this)closeModal()});
 document.getElementById('prospectModalBg').addEventListener('click',function(e){if(e.target===this)closeProspectModal()});
 document.getElementById('pipelineModalBg').addEventListener('click',function(e){if(e.target===this)closePipelineModal()});
@@ -941,6 +1031,7 @@ const now=new Date();
 document.getElementById('todayFull').textContent=now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
 loadAll();
+loadInbox();
 </script>
 </body>
 </html>
