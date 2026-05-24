@@ -452,6 +452,9 @@ async function gasWrite(sheet, data){
 }
 
 async function loadAll(){
+  // Render immediately from cache so UI is never blocked
+  loadFromCache();
+  // Then sync from Sheet in background
   setSyncStatus('syncing');
   try{
     const [t,p,a,pl] = await Promise.all([gasRead('Tasks'),gasRead('Prospects'),gasRead('Activity'),gasRead('Pipeline')]);
@@ -462,9 +465,9 @@ async function loadAll(){
     if(!tasks.length) seedTasks();
     setSyncStatus('ok');
     renderAll();
+    saveCache();
   }catch(e){
     setSyncStatus('err','Offline, using cache');
-    loadFromCache();
   }
 }
 
@@ -971,6 +974,8 @@ let inboxEmails = [];
 let inboxFilter = 'all';
 
 async function loadInbox() {
+  // Show immediately, load in background
+  renderInbox();
   try {
     const ic=new AbortController();setTimeout(()=>ic.abort(),15000);
     const res = await fetch(GAS_URL, {method:'POST', body:JSON.stringify({action:'read',sheet:'Inbox'}), headers:{'Content-Type':'text/plain'},signal:ic.signal});
@@ -983,7 +988,8 @@ async function loadInbox() {
       el.textContent = 'Last synced by Claude: ' + new Date(inboxEmails[0].syncedAt).toLocaleString('en-GB');
     }
   } catch(e) {
-    document.getElementById('inboxList').innerHTML = '<div class="empty">Could not load inbox. Check connection.</div>';
+    const el = document.getElementById('inboxSyncedAt');
+    if(el) el.textContent = 'Could not reach server. Ask Claude to sync inbox.';
   }
 }
 
