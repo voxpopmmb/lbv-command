@@ -437,9 +437,14 @@ function setSyncStatus(state, msg){
 }
 
 async function gasRead(sheet){
-  const res = await fetch(GAS_URL, {method:'POST', body:JSON.stringify({action:'read',sheet}), headers:{'Content-Type':'text/plain'}});
-  const data = await res.json();
-  return data.data || [];
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(GAS_URL, {method:'POST', body:JSON.stringify({action:'read',sheet}), headers:{'Content-Type':'text/plain'}, signal: controller.signal});
+    clearTimeout(timeout);
+    const data = await res.json();
+    return data.data || [];
+  } catch(e) { clearTimeout(timeout); throw e; }
 }
 
 async function gasWrite(sheet, data){
@@ -839,7 +844,7 @@ async function fetchApolloData(){
   const btn=document.getElementById('refreshBtn');
   if(btn){btn.textContent='Loading...';btn.disabled=true;}
   try{
-    const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'apollo'}),headers:{'Content-Type':'text/plain'}});
+    const ac=new AbortController();setTimeout(()=>ac.abort(),15000);const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'apollo'}),headers:{'Content-Type':'text/plain'},signal:ac.signal});
     if(!res.ok) throw new Error('GAS '+res.status);
     const data=await res.json();
     const seqs=data.emailer_campaigns||[];
@@ -967,7 +972,8 @@ let inboxFilter = 'all';
 
 async function loadInbox() {
   try {
-    const res = await fetch(GAS_URL, {method:'POST', body:JSON.stringify({action:'read',sheet:'Inbox'}), headers:{'Content-Type':'text/plain'}});
+    const ic=new AbortController();setTimeout(()=>ic.abort(),15000);
+    const res = await fetch(GAS_URL, {method:'POST', body:JSON.stringify({action:'read',sheet:'Inbox'}), headers:{'Content-Type':'text/plain'},signal:ic.signal});
     const data = await res.json();
     inboxEmails = data.data || [];
     renderInbox();
