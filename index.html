@@ -735,7 +735,7 @@ function buildAlerts(){
   document.getElementById('sv-intel').textContent=alerts.length;
   const area=document.getElementById('alertArea');
   const hot=alerts.filter(a=>a.type==='hot');
-  area.innerHTML=hot.length>0?`<div class="alert-banner"><div class="alert-icon">🔥</div><div class="alert-text"><strong>${hot.length} prospect${hot.length>1?'s':''} replied and need${hot.length===1?'s':''} your response.</strong></div><div class="alert-action" onclick="showPage('intel')">View →</div></div>`:'';
+  area.innerHTML=hot.length>0?`<div class="alert-banner"><div class="alert-icon">🔥</div><div class="alert-text"><strong>${hot.length} prospect${hot.length>1?'s':''} replied and need${hot.length===1?'s':''} your response.</strong></div><div class="alert-action" onclick="showPage(&quot;intel&quot;)">View →</div></div>`:'';
 }
 
 function openProspectModal(){
