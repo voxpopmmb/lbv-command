@@ -452,23 +452,25 @@ async function gasWrite(sheet, data){
 }
 
 async function loadAll(){
-  // Render immediately from cache so UI is never blocked
+  // Render immediately from cache so UI is always interactive
   loadFromCache();
-  // Then sync from Sheet in background
-  setSyncStatus('syncing');
-  try{
+  // Defer GAS sync by 2 seconds so browser fully renders first
+  setTimeout(async () => {
+    setSyncStatus('syncing');
+    try{
     const [t,p,a,pl] = await Promise.all([gasRead('Tasks'),gasRead('Prospects'),gasRead('Activity'),gasRead('Pipeline')]);
     tasks = t.map(r=>({...r, done: r.done==='TRUE'||r.done===true}));
     prospects = p;
     activityLog = a;
     pipelineEntries = pl;
     if(!tasks.length) seedTasks();
-    setSyncStatus('ok');
-    renderAll();
-    saveCache();
-  }catch(e){
-    setSyncStatus('err','Offline, using cache');
-  }
+      setSyncStatus('ok');
+      renderAll();
+      saveCache();
+    }catch(e){
+      setSyncStatus('err','Offline, using cache');
+    }
+  }, 2000);
 }
 
 function loadFromCache(){
@@ -1001,7 +1003,7 @@ function updateInboxCount() {
   const hotEmails = inboxEmails.filter(e => e.urgency === 'hot');
   const area = document.getElementById('alertArea');
   if(hotEmails.length && area && !area.innerHTML) {
-    area.innerHTML = '<div class="alert-banner"><div class="alert-icon">✉</div><div class="alert-text"><strong>' + hotEmails.length + ' email' + (hotEmails.length > 1 ? 's' : '') + ' need' + (hotEmails.length === 1 ? 's' : '') + ' immediate attention.</strong> ' + hotEmails.map(e => e.sender).join(', ') + '</div><div class="alert-action" onclick="showPage('inbox')">View inbox →</div></div>';
+    area.innerHTML = '<div class="alert-banner"><div class="alert-icon">✉</div><div class="alert-text"><strong>' + hotEmails.length + ' email' + (hotEmails.length > 1 ? 's' : '') + ' need' + (hotEmails.length === 1 ? 's' : '') + ' immediate attention.</strong> ' + hotEmails.map(e => e.sender).join(', ') + '</div><div class="alert-action" onclick="showPage(&quot;inbox&quot;)">View inbox →</div></div>';
   }
 }
 
@@ -1043,7 +1045,7 @@ const now=new Date();
 document.getElementById('todayFull').textContent=now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
 loadAll();
-loadInbox();
+setTimeout(loadInbox, 3000);
 </script>
 </body>
 </html>
