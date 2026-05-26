@@ -1022,17 +1022,18 @@ function renderInbox() {
   else if(inboxFilter === 'warm') emails = emails.filter(e => e.urgency === 'warm');
   else if(inboxFilter === 'unread') emails = emails.filter(e => e.isRead === 'FALSE' || e.isRead === false);
   if(!emails.length) { el.innerHTML = '<div class="empty">No emails in this view.</div>'; return; }
-  el.innerHTML = emails.map(e => {
-    const unread = e.isRead === 'FALSE' || e.isRead === false;
-    const urgClass = e.urgency === 'hot' ? 'urgency-hot' : e.urgency === 'warm' ? 'urgency-warm' : '';
-    const badge = e.urgency === 'hot' ? '<span class="urg-badge urg-hot">HOT</span>' : e.urgency === 'warm' ? '<span class="urg-badge urg-warm">WARM</span>' : '<span class="urg-badge urg-info">INFO</span>';
-    const date = e.received ? new Date(e.received).toLocaleDateString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
-    return '<div class="inbox-card ' + urgClass + (unread ? ' unread' : '') + '" onclick="window.open(\'' + e.webLink + '\',\'_blank\')">' +
-      '<div class="inbox-meta">' + badge + '<span class="inbox-sender">' + (e.sender || '') + '</span><span class="inbox-date">' + date + '</span></div>' +
-      '<div class="inbox-subject">' + (e.subject || '') + '</div>' +
-      (e.summary ? '<div class="inbox-summary">' + String(e.summary).slice(0, 160) + (e.summary.length > 160 ? '...' : '') + '</div>' : '') +
-      '<div style="font-size:10px;color:var(--accent);margin-top:4px">Click to open in Outlook ↗</div>' +
-      '</div>';
+  el.innerHTML = emails.map(function(e) {
+    var unread = e.isRead === 'FALSE' || e.isRead === false;
+    var urgClass = e.urgency === 'hot' ? 'urgency-hot' : e.urgency === 'warm' ? 'urgency-warm' : '';
+    var badgeClass = e.urgency === 'hot' ? 'urg-hot' : e.urgency === 'warm' ? 'urg-warm' : 'urg-info';
+    var badgeText = e.urgency === 'hot' ? 'HOT' : e.urgency === 'warm' ? 'WARM' : 'INFO';
+    var date = e.received ? new Date(e.received).toLocaleDateString('en-GB') : '';
+    var summary = e.summary ? String(e.summary).slice(0, 160) + (String(e.summary).length > 160 ? '...' : '') : '';
+    var card = document.createElement('div');
+    card.className = 'inbox-card ' + urgClass + (unread ? ' unread' : '');
+    if(e.webLink) card.addEventListener('click', function() { window.open(e.webLink, '_blank'); });
+    card.innerHTML = '<div class="inbox-meta"><span class="urg-badge ' + badgeClass + '">' + badgeText + '</span><span class="inbox-sender">' + (e.sender || '') + '</span><span class="inbox-date">' + date + '</span></div><div class="inbox-subject">' + (e.subject || '') + '</div>' + (summary ? '<div class="inbox-summary">' + summary + '</div>' : '') + '<div style="font-size:10px;color:var(--accent);margin-top:4px">Click to open in Outlook ↗</div>';
+    return card.outerHTML;
   }).join('');
 }
 
