@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LBV Command</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0c12;--surface:#13161f;--surface2:#1c2030;--border:#252a3d;--text:#eef0ff;--muted:#6b7299;--accent:#4f7fff;--green:#2ecc8a;--amber:#f5a623;--red:#ff4f6a;--purple:#a78bfa;--font:'Segoe UI',system-ui,sans-serif}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.logo{padding:18px 16px 16px;border-bottom:1px solid var(--border)}
+.logo h1{font-size:14px;font-weight:700;letter-spacing:.04em;color:var(--text)}
+.logo-sub{font-size:10px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.nav-section{padding:12px 8px 4px}
+.nav-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;padding:0 8px;margin-bottom:4px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;color:var(--muted);font-size:12px;transition:all .15s;user-select:none}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--surface2);color:var(--text)}
+.nav-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+.nav-count{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:8px;background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+.nav-count.hot{background:rgba(245,166,35,.15);border-color:var(--amber);color:var(--amber)}
+.routine-box{margin:auto 8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px}
+.routine-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+.routine-item{display:flex;align-items:center;gap:7px;padding:3px 0;cursor:pointer}
+.routine-item input[type=checkbox]{accent-color:var(--green);width:13px;height:13px;cursor:pointer;flex-shrink:0}
+.routine-item label{font-size:11px;color:var(--muted);cursor:pointer;flex:1;line-height:1.3}
+.routine-item.done label{text-decoration:line-through;color:var(--border)}
+.routine-item .r-link{font-size:10px;color:var(--accent);opacity:0;flex-shrink:0;text-decoration:none}
+.routine-item:hover .r-link{opacity:1}
+.rp-wrap{margin-top:8px}
+.rp-track{height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.rp-bar{height:100%;background:var(--green);border-radius:2px;transition:width .4s}
+.rp-pct{font-size:9px;color:var(--muted);margin-top:4px}
+.main{padding:20px 24px;overflow-y:auto;min-height:100vh}
+.page{display:none}.page.active{display:block}
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap}
+.page-title{font-size:17px;font-weight:600}
+.page-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{opacity:.85;color:#fff}
+.btn-sm{padding:4px 8px;font-size:11px}
+.btn-group{display:flex;gap:6px;flex-wrap:wrap}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;cursor:pointer;transition:all .15s}
+.stat-card:hover{border-color:var(--accent)}
+.stat-label{font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.stat-value{font-size:24px;font-weight:600;line-height:1}
+.stat-sub{font-size:10px;color:var(--muted);margin-top:4px}
+.section{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:14px}
+.section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.filter-row{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.filter-btn{font-size:11px;padding:3px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.filter-btn.active,.filter-btn:hover{background:var(--surface2);color:var(--text);border-color:var(--muted)}
+.task-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:7px;transition:all .15s}
+.task-card:hover{border-color:var(--accent)}
+.task-card.done-card{opacity:.4}
+.task-title{font-size:13px;font-weight:500;margin-bottom:6px;line-height:1.4}
+.task-title.crossed{text-decoration:line-through;color:var(--muted)}
+.task-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tag{font-size:10px;padding:2px 7px;border-radius:8px;font-weight:500}
+.tag-apollo{background:#0d1e3d;color:#4f7fff}
+.tag-linkedin{background:#061a30;color:#0a8af7}
+.tag-content{background:#0d2118;color:#2ecc8a}
+.tag-it{background:#1a0d2a;color:#a78bfa}
+.tag-client{background:#2a1a06;color:#f5a623}
+.tag-admin{background:#2a0d10;color:#ff4f6a}
+.pri-dot{width:6px;height:6px;border-radius:50%;margin-left:auto;flex-shrink:0}
+.p-high{background:var(--red)}.p-med{background:var(--amber)}.p-low{background:var(--green)}
+.task-notes{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
+.task-actions{display:flex;gap:4px;margin-top:7px;flex-wrap:wrap}
+.task-btn{font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.task-btn:hover{color:var(--text);border-color:var(--muted)}
+.task-btn.del:hover{color:var(--red);border-color:var(--red)}
+.kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kanban-col{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;min-height:280px}
+.col-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.col-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.col-count{font-size:10px;background:var(--surface2);border:1px solid var(--border);padding:1px 7px;border-radius:8px;color:var(--muted)}
+.add-col-btn{width:100%;padding:6px;border-radius:6px;border:1px dashed var(--border);background:transparent;color:var(--muted);font-size:11px;cursor:pointer;transition:all .15s;margin-top:6px}
+.add-col-btn:hover{border-color:var(--accent);color:var(--accent)}
+.prospect-row{display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;margin-bottom:6px}
+.prospect-info{flex:1}
+.prospect-name{font-size:13px;font-weight:500}
+.prospect-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.prospect-signals{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.signal{font-size:10px;padding:2px 7px;border-radius:8px}
+.sig-reply{background:#0d2118;color:var(--green)}
+.sig-open{background:#0d1e3d;color:var(--accent)}
+.sig-connect{background:#1a0d2a;color:var(--purple)}
+.sig-cold{background:#1a0d10;color:var(--muted)}
+.followup-item{display:flex;align-items:flex-start;gap:10px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;margin-bottom:7px}
+.followup-icon{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.fi-hot{background:#2a0d0a;color:var(--amber)}
+.fi-warm{background:#0d1e3d;color:var(--accent)}
+.fi-cold{background:#1a0d2a;color:var(--purple)}
+.followup-content{flex:1}
+.followup-name{font-size:13px;font-weight:500;margin-bottom:2px}
+.followup-reason{font-size:11px;color:var(--muted);line-height:1.5}
+.followup-action{font-size:11px;color:var(--accent);margin-top:4px;font-weight:500}
+.urgency-hot{border-left:3px solid var(--red)}
+.urgency-warm{border-left:3px solid var(--amber)}
+.urgency-cold{border-left:3px solid var(--border)}
+.log-row{display:grid;grid-template-columns:130px repeat(6,1fr);gap:6px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)}
+.log-row:last-child{border-bottom:none}
+.log-label{font-size:11px;color:var(--muted)}
+.log-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:12px;text-align:center}
+.log-input:focus{outline:none;border-color:var(--accent)}
+.log-header{display:grid;grid-template-columns:130px repeat(6,1fr);gap:6px;padding:0 0 6px;border-bottom:1px solid var(--border);margin-bottom:2px}
+.log-header span{font-size:9px;color:var(--muted);text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.log-header span:first-child{text-align:left}
+.chart-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.chart-bar-label{font-size:11px;color:var(--muted);width:90px;flex-shrink:0}
+.chart-bar-track{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.chart-bar-fill{height:100%;border-radius:3px;transition:width .5s}
+.chart-bar-val{font-size:11px;color:var(--muted);width:32px;text-align:right;flex-shrink:0}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:22px;width:480px;max-width:92vw;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:14px;font-weight:600;margin-bottom:16px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+.field input,.field select,.field textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:inherit}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+.field textarea{resize:vertical;min-height:65px}
+.field select option{background:var(--surface)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:12px;z-index:200;transform:translateY(20px);opacity:0;transition:all .25s;max-width:280px}
+.toast.show{transform:translateY(0);opacity:1}
+.alert-banner{background:linear-gradient(135deg,#0d1e3d,#0d1a2a);border:1px solid var(--accent);border-radius:8px;padding:11px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.alert-icon{font-size:15px;flex-shrink:0}
+.alert-text{font-size:12px;flex:1;line-height:1.4}
+.alert-action{font-size:11px;color:var(--accent);cursor:pointer;flex-shrink:0;font-weight:600}
+.empty{text-align:center;padding:24px;color:var(--muted);font-size:12px}
+.suggest-box{background:var(--surface);border:1px solid var(--accent);border-radius:8px;padding:14px;margin-bottom:14px}
+.loading-dots{display:inline-flex;gap:3px;align-items:center}
+.loading-dots span{width:4px;height:4px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite}
+.loading-dots span:nth-child(2){animation-delay:.2s}
+.loading-dots span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+.sync-status{font-size:10px;color:var(--muted);text-align:right;margin-bottom:8px}
+.sync-status.syncing{color:var(--amber)}
+.sync-status.ok{color:var(--green)}
+.sync-status.err{color:var(--red)}
+.od-table-header{display:grid;grid-template-columns:200px 70px 70px 70px 70px 70px 70px 70px;gap:6px;padding:0 0 6px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.od-table-header span{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;text-align:center}
+.od-table-header span:first-child{text-align:left}
+.metrics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.metric-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
+.metric-val{font-size:20px;font-weight:600;margin-bottom:2px}
+.metric-label{font-size:10px;color:var(--muted)}
+.pipeline-row{display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;margin-bottom:6px}
+.inbox-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:7px;transition:all .15s;cursor:pointer}
+.inbox-card:hover{border-color:var(--accent)}
+.inbox-card.unread{border-left:3px solid var(--accent)}
+.inbox-card.urgency-hot{border-left:3px solid var(--red)}
+.inbox-card.urgency-warm{border-left:3px solid var(--amber)}
+.inbox-meta{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+.inbox-sender{font-size:12px;font-weight:600}
+.inbox-subject{font-size:13px;font-weight:500;margin-bottom:4px;line-height:1.4}
+.inbox-summary{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:6px}
+.inbox-date{font-size:10px;color:var(--muted);margin-left:auto}
+.urg-badge{font-size:9px;padding:2px 7px;border-radius:8px;font-weight:700}
+.urg-hot{background:rgba(255,79,106,.15);color:var(--red)}
+.urg-warm{background:rgba(245,166,35,.15);color:var(--amber)}
+.urg-info{background:rgba(107,114,153,.1);color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="logo">
+      <h1>LBV Command</h1>
+      <div class="logo-sub"><div class="sync-dot" id="syncDot"></div><span id="syncLabel">Syncing...</span></div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Views</div>
+      <div class="nav-item active" onclick="showPage('today')" id="nav-today"><span class="nav-icon">◈</span>Today<span class="nav-count" id="cnt-today">0</span></div>
+      <div class="nav-item" onclick="showPage('intel')" id="nav-intel"><span class="nav-icon">⚡</span>Follow-up intel<span class="nav-count hot" id="cnt-intel">0</span></div>
+      <div class="nav-item" onclick="showPage('tracker')" id="nav-tracker"><span class="nav-icon">◎</span>Activity tracker</div>
+      <div class="nav-item" onclick="showPage('board')" id="nav-board"><span class="nav-icon">▦</span>Task board<span class="nav-count" id="cnt-board">0</span></div>
+      <div class="nav-item" onclick="showPage('outreach')" id="nav-outreach"><span class="nav-icon">◉</span>Outreach dashboard</div>
+      <div class="nav-item" onclick="showPage('pipeline')" id="nav-pipeline"><span class="nav-icon">◈</span>Pipeline<span class="nav-count" id="cnt-pipeline">0</span></div>
+      <div class="nav-item" onclick="showPage('inbox')" id="nav-inbox"><span class="nav-icon">✉</span>Inbox<span class="nav-count hot" id="cnt-inbox">0</span></div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Filter</div>
+      <div class="nav-item" onclick="filterCat('LinkedIn')"><span class="nav-icon" style="color:#0a8af7">●</span>LinkedIn</div>
+      <div class="nav-item" onclick="filterCat('Apollo')"><span class="nav-icon" style="color:#4f7fff">●</span>Apollo email</div>
+      <div class="nav-item" onclick="filterCat('Client')"><span class="nav-icon" style="color:#f5a623">●</span>Client</div>
+      <div class="nav-item" onclick="filterCat('IT')"><span class="nav-icon" style="color:#a78bfa">●</span>IT</div>
+    </div>
+    <div class="routine-box">
+      <div class="routine-label">Daily routine</div>
+      <div id="routineList"></div>
+      <div class="rp-wrap"><div class="rp-track"><div class="rp-bar" id="rBar"></div></div><div class="rp-pct" id="rPct">0% complete</div></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- TODAY -->
+    <div class="page active" id="page-today">
+      <div class="page-header">
+        <div><div class="page-title">Today</div><div class="page-sub" id="todayFull"></div></div>
+        <div class="btn-group">
+          <button class="btn" onclick="getSuggestions()" id="suggestBtn">✦ AI suggestions</button>
+          <button class="btn btn-primary" onclick="openModal()">+ Add task</button>
+        </div>
+      </div>
+      <div id="alertArea"></div>
+      <div id="suggestArea"></div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Tasks today</div><div class="stat-value" id="sv-today">0</div><div class="stat-sub">scheduled</div></div>
+        <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value" id="sv-done" style="color:var(--green)">0</div><div class="stat-sub">today</div></div>
+        <div class="stat-card"><div class="stat-label">High priority</div><div class="stat-value" id="sv-high" style="color:var(--red)">0</div><div class="stat-sub">pending</div></div>
+        <div class="stat-card" onclick="showPage('intel')"><div class="stat-label">Follow-ups due</div><div class="stat-value" id="sv-intel" style="color:var(--amber)">0</div><div class="stat-sub">need attention ↗</div></div>
+      </div>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+        <button class="filter-btn" onclick="setFilter('High',this)">High priority</button>
+        <button class="filter-btn" onclick="setFilter('Apollo',this)">Apollo</button>
+        <button class="filter-btn" onclick="setFilter('LinkedIn',this)">LinkedIn</button>
+        <button class="filter-btn" onclick="setFilter('IT',this)">IT</button>
+        <button class="filter-btn" onclick="setFilter('done',this)">Done</button>
+      </div>
+      <div id="todayTasks"></div>
+    </div>
+
+    <!-- FOLLOW UP INTEL -->
+    <div class="page" id="page-intel">
+      <div class="page-header">
+        <div><div class="page-title">Follow-up intel</div><div class="page-sub">Who needs attention today and why</div></div>
+        <div class="btn-group">
+          <button class="btn" onclick="analyseIntel()" id="intelBtn">✦ Analyse now</button>
+          <button class="btn btn-primary" onclick="openProspectModal()">+ Log prospect</button>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">Priority follow-ups <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">AI-ranked by signal strength</span></div>
+        <div id="followupList"><div class="empty">Click Analyse now to generate recommendations.</div></div>
+      </div>
+      <div class="section">
+        <div class="section-title">All prospects</div>
+        <div class="filter-row">
+          <button class="filter-btn active" onclick="filterProspects('all',this)">All</button>
+          <button class="filter-btn" onclick="filterProspects('LinkedIn',this)">LinkedIn</button>
+          <button class="filter-btn" onclick="filterProspects('Apollo',this)">Apollo</button>
+        </div>
+        <div id="prospectList"><div class="empty">No prospects logged yet.</div></div>
+      </div>
+    </div>
+
+    <!-- TRACKER -->
+    <div class="page" id="page-tracker">
+      <div class="page-header">
+        <div><div class="page-title">Activity tracker</div><div class="page-sub">Log daily outreach numbers</div></div>
+        <button class="btn btn-primary" onclick="saveActivityLog()">Save today</button>
+      </div>
+      <div class="section">
+        <div class="section-title">Today's activity</div>
+        <div class="log-header"><span>Channel</span><span>Sent</span><span>Accepted</span><span>Replied</span><span>Sent</span><span>Opened</span><span>Replied</span></div>
+        <div class="log-row"><div class="log-label" style="color:#0a8af7">LinkedIn</div><input class="log-input" id="li-sent" type="number" min="0" placeholder="0"/><input class="log-input" id="li-accept" type="number" min="0" placeholder="0"/><input class="log-input" id="li-reply" type="number" min="0" placeholder="0"/><div></div><div></div><div></div></div>
+        <div class="log-row"><div class="log-label" style="color:#4f7fff">Apollo email</div><div></div><div></div><div></div><input class="log-input" id="ap-sent" type="number" min="0" placeholder="0"/><input class="log-input" id="ap-open" type="number" min="0" placeholder="0"/><input class="log-input" id="ap-reply" type="number" min="0" placeholder="0"/></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Last 7 days</div>
+        <div id="activityHistory"><div class="empty">No activity logged yet.</div></div>
+      </div>
+    </div>
+
+    <!-- BOARD -->
+    <div class="page" id="page-board">
+      <div class="page-header">
+        <div><div class="page-title">Task board</div><div class="page-sub">All tasks across all columns</div></div>
+        <button class="btn btn-primary" onclick="openModal()">+ Add task</button>
+      </div>
+      <div class="kanban" id="kanban"></div>
+    </div>
+
+    <!-- OUTREACH DASHBOARD -->
+    <div class="page" id="page-outreach">
+      <div class="page-header">
+        <div><div class="page-title">Outreach dashboard</div><div class="page-sub" id="lastFetched">Loading Apollo data...</div></div>
+        <button class="btn" onclick="fetchApolloData()" id="refreshBtn">↻ Refresh</button>
+      </div>
+      <div class="alert-banner" id="apolloStatus" style="display:none"><div class="alert-icon">⚠</div><div class="alert-text">Could not reach Apollo API. Showing cached data.</div></div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Active contacts</div><div class="stat-value" id="od-active">—</div><div class="stat-sub">in sequences</div></div>
+        <div class="stat-card"><div class="stat-label">Delivered</div><div class="stat-value" id="od-delivered">—</div><div class="stat-sub">emails sent</div></div>
+        <div class="stat-card"><div class="stat-label">Replies</div><div class="stat-value" id="od-replies">—</div><div class="stat-sub">total</div></div>
+        <div class="stat-card"><div class="stat-label">Reply rate</div><div class="stat-value" id="od-reply-rate">—</div><div class="stat-sub">overall</div></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Sequences</div>
+        <div class="od-table-header"><span>Name</span><span>Status</span><span>Active</span><span>Delivered</span><span>Opened</span><span>Open %</span><span>Replied</span><span>Reply %</span></div>
+        <div id="sequenceRows"><div class="empty">Loading...</div></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Reply rate by segment</div>
+        <div id="segPerfBars"></div>
+      </div>
+    </div>
+
+    <!-- PIPELINE -->
+    <div class="page" id="page-pipeline">
+      <div class="page-header">
+        <div><div class="page-title">Pipeline</div><div class="page-sub">Replies, surveys and orders</div></div>
+        <button class="btn btn-primary" onclick="openPipelineModal()">+ Log entry</button>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total replies</div><div class="stat-value" id="pl-total">0</div></div>
+        <div class="stat-card"><div class="stat-label">Surveys booked</div><div class="stat-value" id="pl-survey" style="color:var(--amber)">0</div></div>
+        <div class="stat-card"><div class="stat-label">Surveys done</div><div class="stat-value" id="pl-done" style="color:var(--accent)">0</div></div>
+        <div class="stat-card"><div class="stat-label">Orders won</div><div class="stat-value" id="pl-order" style="color:var(--green)">0</div></div>
+      </div>
+      <div class="section">
+        <div class="section-title">All entries</div>
+        <div id="pipelineRows"><div class="empty">No entries yet. Log replies and surveys as they come in.</div></div>
+      </div>
+    </div>
+    <!-- INBOX -->
+    <div class="page" id="page-inbox">
+      <div class="page-header">
+        <div><div class="page-title">Inbox</div><div class="page-sub" id="inboxSyncedAt">Synced by Claude this session</div></div>
+        <div class="btn-group">
+          <button class="btn" onclick="filterInbox('all',this)" id="ibf-all" style="background:var(--surface2)">All</button>
+          <button class="btn" onclick="filterInbox('hot',this)">🔥 Hot</button>
+          <button class="btn" onclick="filterInbox('warm',this)">⚡ Warm</button>
+          <button class="btn" onclick="filterInbox('unread',this)">Unread</button>
+        </div>
+      </div>
+      <div id="inboxList"><div class="empty">Loading inbox...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- TASK MODAL -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="modalTitle">Add task</h3>
+    <div class="field"><label>Title</label><input type="text" id="t-title" placeholder="What needs doing?"/></div>
+    <div class="two-col">
+      <div class="field"><label>Category</label><select id="t-cat"><option>Apollo</option><option>LinkedIn</option><option>Content</option><option>IT</option><option>Client</option><option>Admin</option></select></div>
+      <div class="field"><label>Priority</label><select id="t-pri"><option>High</option><option>Med</option><option>Low</option></select></div>
+    </div>
+    <div class="two-col">
+      <div class="field"><label>Column</label><select id="t-status"><option>Today</option><option>This week</option><option>Waiting</option><option>Done</option></select></div>
+      <div class="field"><label>Due date</label><input type="date" id="t-due"/></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="t-notes" placeholder="Any context or next steps..."></textarea></div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveTask()">Save</button></div>
+  </div>
+</div>
+
+<!-- PROSPECT MODAL -->
+<div class="modal-bg" id="prospectModalBg">
+  <div class="modal">
+    <h3>Log prospect</h3>
+    <div class="two-col">
+      <div class="field"><label>Name</label><input type="text" id="p-name" placeholder="James Clarke"/></div>
+      <div class="field"><label>Company</label><input type="text" id="p-company" placeholder="ANR Logistics"/></div>
+    </div>
+    <div class="two-col">
+      <div class="field"><label>Job title</label><input type="text" id="p-title" placeholder="Facilities Manager"/></div>
+      <div class="field"><label>Sector</label><select id="p-sector"><option>Warehousing</option><option>Industrial</option><option>Corporate Office</option><option>Hotel</option><option>Car Dealer</option><option>Other</option></select></div>
+    </div>
+    <div class="two-col">
+      <div class="field"><label>Channel</label><select id="p-channel"><option>LinkedIn</option><option>Apollo</option><option>Both</option></select></div>
+      <div class="field"><label>Segment</label><select id="p-segment"><option value="">None</option><option value="A">A, Warehousing</option><option value="B">B, Industrial</option><option value="C">C, Offices</option><option value="D">D, Hotels</option><option value="E">E, Car Dealers</option></select></div>
+    </div>
+    <div class="two-col">
+      <div class="field"><label>Status</label><select id="p-status"><option value="connected">LinkedIn connected</option><option value="messaged">Messaged</option><option value="emailed">Apollo emailed</option><option value="opened">Opened email</option><option value="replied">Replied</option><option value="interested">Interested</option><option value="survey_booked">Survey booked</option><option value="cold">No response</option></select></div>
+      <div class="field"><label>Last contact</label><input type="date" id="p-date"/></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="p-notes" placeholder="Anything useful..."></textarea></div>
+    <div class="modal-actions"><button class="btn" onclick="closeProspectModal()">Cancel</button><button class="btn btn-primary" onclick="saveProspect()">Save prospect</button></div>
+  </div>
+</div>
+
+<!-- PIPELINE MODAL -->
+<div class="modal-bg" id="pipelineModalBg">
+  <div class="modal">
+    <h3>Log pipeline entry</h3>
+    <div class="two-col">
+      <div class="field"><label>Company</label><input type="text" id="pl-company" placeholder="ANR Logistics"/></div>
+      <div class="field"><label>Contact</label><input type="text" id="pl-contact" placeholder="James Clarke"/></div>
+    </div>
+    <div class="two-col">
+      <div class="field"><label>Segment</label><select id="pl-seg"><option value="A">A, Warehousing</option><option value="B">B, Industrial</option><option value="C">C, Offices</option><option value="D">D, Hotels</option><option value="E">E, Car Dealers</option></select></div>
+      <div class="field"><label>Source</label><select id="pl-source"><option>LinkedIn</option><option>Apollo</option><option>Both</option><option>Referral</option></select></div>
+    </div>
+    <div class="field"><label>Stage</label><select id="pl-stage"><option>Replied</option><option>Survey booked</option><option>Survey done</option><option>Quoted</option><option>Order won</option></select></div>
+    <div class="field"><label>Notes</label><textarea id="pl-notes" placeholder="Any details..."></textarea></div>
+    <div class="modal-actions"><button class="btn" onclick="closePipelineModal()">Cancel</button><button class="btn btn-primary" onclick="savePipelineEntry()">Save</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwygMktf2B8tK6S_s3Lg2yKZICIV11c7DD5bCxSgOMszF5vCGfva79DLaaX2G-kKNb6/exec';
+const APOLLO_KEY = 'tMFC_OULnqIQbqKHCGgsVg';
+
+const ROUTINE = [
+  {id:'r1',label:'10 LinkedIn connection requests',url:'https://www.linkedin.com/sales/'},
+  {id:'r2',label:'Check Apollo replies in Outlook',url:'https://outlook.office.com/mail/'},
+  {id:'r3',label:'Check LinkedIn messages',url:'https://www.linkedin.com/messaging/'},
+  {id:'r4',label:'Log activity in tracker',url:'#tracker'},
+  {id:'r5',label:'Weekly: top up Apollo contacts',url:'https://app.apollo.io/#/people'},
+  {id:'r6',label:'Weekly: LinkedIn content post',url:'https://www.linkedin.com/'},
+];
+const COLS = ['Today','This week','Waiting','Done'];
+const SEG_NAMES = {A:'Warehousing',B:'Industrial',C:'Offices',D:'Hotels',E:'Car Dealers'};
+const SEG_COLORS = {A:'var(--accent)',B:'var(--green)',C:'var(--purple)',D:'var(--amber)',E:'var(--red)'};
+const SEG_MAP = {warehouse:'A',industri:'B',office:'C',hotel:'D',car:'E',dealer:'E'};
+
+let tasks=[], prospects=[], activityLog=[], pipelineEntries=[];
+let taskFilter='all', prospectFilter='all', editId=null, editProspectId=null;
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function todayKey(){return new Date().toISOString().slice(0,10)}
+
+// SYNC
+function setSyncStatus(state, msg){
+  const dot = document.getElementById('syncDot');
+  const label = document.getElementById('syncLabel');
+  if(state==='ok'){dot.style.background='var(--green)';label.textContent=msg||'Synced';}
+  else if(state==='syncing'){dot.style.background='var(--amber)';label.textContent='Syncing...';}
+  else{dot.style.background='var(--red)';label.textContent=msg||'Sync error';}
+}
+
+async function gasRead(sheet){
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(GAS_URL, {method:'POST', body:JSON.stringify({action:'read',sheet}), headers:{'Content-Type':'text/plain'}, signal: controller.signal});
+    clearTimeout(timeout);
+    const data = await res.json();
+    return data.data || [];
+  } catch(e) { clearTimeout(timeout); throw e; }
+}
+
+async function gasWrite(sheet, data){
+  await fetch(GAS_URL, {method:'POST', body:JSON.stringify({action:'write',sheet,data}), headers:{'Content-Type':'text/plain'}});
+}
+
+async function loadAll(){
+  // Render immediately from cache so UI is always interactive
+  loadFromCache();
+  // Defer GAS sync by 2 seconds so browser fully renders first
+  setTimeout(async () => {
+    setSyncStatus('syncing');
+    try{
+    const [t,p,a,pl] = await Promise.all([gasRead('Tasks'),gasRead('Prospects'),gasRead('Activity'),gasRead('Pipeline')]);
+    tasks = t.map(r=>({...r, done: r.done==='TRUE'||r.done===true}));
+    prospects = p;
+    activityLog = a;
+    pipelineEntries = pl;
+    if(!tasks.length) seedTasks();
+      setSyncStatus('ok');
+      renderAll();
+      saveCache();
+    }catch(e){
+      setSyncStatus('err','Offline, using cache');
+    }
+  }, 2000);
+}
+
+function loadFromCache(){
+  tasks = JSON.parse(localStorage.getItem('lbv_tasks')||'[]');
+  prospects = JSON.parse(localStorage.getItem('lbv_prospects')||'[]');
+  activityLog = JSON.parse(localStorage.getItem('lbv_activity')||'[]');
+  pipelineEntries = JSON.parse(localStorage.getItem('lbv_pipeline')||'[]');
+  if(!tasks.length) seedTasks();
+  renderAll();
+}
+
+function saveCache(){
+  localStorage.setItem('lbv_tasks',JSON.stringify(tasks));
+  localStorage.setItem('lbv_prospects',JSON.stringify(prospects));
+  localStorage.setItem('lbv_activity',JSON.stringify(activityLog));
+  localStorage.setItem('lbv_pipeline',JSON.stringify(pipelineEntries));
+}
+
+async function syncTasks(){
+  setSyncStatus('syncing');
+  try{ await gasWrite('Tasks',tasks); setSyncStatus('ok'); }
+  catch(e){ setSyncStatus('err'); }
+  saveCache();
+}
+async function syncProspects(){
+  setSyncStatus('syncing');
+  try{ await gasWrite('Prospects',prospects); setSyncStatus('ok'); }
+  catch(e){ setSyncStatus('err'); }
+  saveCache();
+}
+async function syncActivity(){
+  setSyncStatus('syncing');
+  try{ await gasWrite('Activity',activityLog); setSyncStatus('ok'); }
+  catch(e){ setSyncStatus('err'); }
+  saveCache();
+}
+async function syncPipeline(){
+  setSyncStatus('syncing');
+  try{ await gasWrite('Pipeline',pipelineEntries); setSyncStatus('ok'); }
+  catch(e){ setSyncStatus('err'); }
+  saveCache();
+}
+
+function seedTasks(){
+  const t = todayKey();
+  tasks = [
+    {id:uid(),title:'Send 10 LinkedIn connection requests',cat:'LinkedIn',pri:'High',status:'Today',due:t,notes:'Use outreach generator in Claude',done:false,created:t},
+    {id:uid(),title:'Check Apollo replies in Outlook',cat:'Apollo',pri:'High',status:'Today',due:t,notes:'Any replies pause the sequence automatically',done:false,created:t},
+    {id:uid(),title:'Add Monday back to Apollo sending schedule',cat:'Apollo',pri:'High',status:'Today',due:t,notes:'Bank holiday is done, re-add Monday in Apollo Settings, Schedules',done:false,created:t},
+  ];
+}
+
+// ROUTINE
+function routineState(){const k='lbv_r_'+todayKey();return JSON.parse(localStorage.getItem(k)||'{}')}
+function setRoutine(id,val){
+  const k='lbv_r_'+todayKey();
+  const s=routineState();s[id]=val;
+  localStorage.setItem(k,JSON.stringify(s));
+  renderRoutine();
+}
+function renderRoutine(){
+  const s=routineState();
+  const done=ROUTINE.filter(r=>s[r.id]).length;
+  const pct=Math.round(done/ROUTINE.length*100);
+  document.getElementById('rBar').style.width=pct+'%';
+  document.getElementById('rPct').textContent=pct+'% complete';
+  document.getElementById('routineList').innerHTML=ROUTINE.map(r=>`
+    <div class="routine-item${s[r.id]?' done':''}">
+      <input type="checkbox" ${s[r.id]?'checked':''} onchange="setRoutine('${r.id}',this.checked)"/>
+      <label onclick="setRoutine('${r.id}',${!s[r.id]})">${r.label}</label>
+      <a class="r-link" href="${r.url}" target="${r.url.startsWith('#')?'_self':'_blank'}">↗</a>
+    </div>`).join('');
+}
+
+// NAVIGATION
+function showPage(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  const nav = document.getElementById('nav-'+p);
+  if(nav) nav.classList.add('active');
+  if(p==='outreach') fetchApolloData();
+  if(p==='tracker') renderActivityHistory();
+}
+
+// RENDER ALL
+function renderAll(){
+  renderRoutine();
+  renderToday();
+  renderBoard();
+  renderProspects();
+  updateMetrics();
+  updatePipelineStats();
+  buildAlerts();
+}
+
+// TASKS
+function getTodayTasks(){const t=todayKey();return tasks.filter(x=>x.status==='Today'||x.due===t)}
+
+function renderToday(){
+  let t=getTodayTasks();
+  if(taskFilter==='done') t=tasks.filter(x=>x.done);
+  else if(taskFilter==='high') t=tasks.filter(x=>x.pri==='High'&&!x.done);
+  else if(taskFilter!=='all') t=t.filter(x=>x.cat===taskFilter||x.pri===taskFilter);
+  document.getElementById('todayTasks').innerHTML=t.length?t.map(taskCard).join(''):'<div class="empty">No tasks. Add one above.</div>';
+}
+
+function renderBoard(){
+  document.getElementById('kanban').innerHTML=COLS.map(col=>{
+    const t=tasks.filter(x=>x.status===col);
+    return`<div class="kanban-col"><div class="col-header"><span class="col-title">${col}</span><span class="col-count">${t.length}</span></div>${t.map(taskCard).join('')}<button class="add-col-btn" onclick="openModal('${col}')">+ Add</button></div>`;
+  }).join('');
+}
+
+function taskCard(t){
+  const cc='tag-'+t.cat.toLowerCase().replace(/\s/g,'');
+  return`<div class="task-card${t.done?' done-card':''}">
+    <div class="task-title${t.done?' crossed':''}">${t.title}</div>
+    <div class="task-meta"><span class="tag ${cc}">${t.cat}</span>${t.due?`<span style="font-size:10px;color:var(--muted)">${t.due}</span>`:''}<div class="pri-dot p-${t.pri==='High'?'high':t.pri==='Med'?'med':'low'}"></div></div>
+    ${t.notes?`<div class="task-notes">${t.notes}</div>`:''}
+    <div class="task-actions">
+      <button class="task-btn" onclick="toggleDone('${t.id}')">${t.done?'↩ Undo':'✓ Done'}</button>
+      <button class="task-btn" onclick="moveTask('${t.id}',-1)">◀</button>
+      <button class="task-btn" onclick="moveTask('${t.id}',1)">▶</button>
+      <button class="task-btn" onclick="editTask('${t.id}')">Edit</button>
+      <button class="task-btn del" onclick="deleteTask('${t.id}')">Delete</button>
+    </div>
+  </div>`;
+}
+
+function updateMetrics(){
+  const today=getTodayTasks();
+  document.getElementById('sv-today').textContent=today.length;
+  document.getElementById('sv-done').textContent=today.filter(x=>x.done).length;
+  document.getElementById('sv-high').textContent=tasks.filter(x=>x.pri==='High'&&!x.done).length;
+  document.getElementById('cnt-today').textContent=today.filter(x=>!x.done).length;
+  document.getElementById('cnt-board').textContent=tasks.filter(x=>!x.done).length;
+}
+
+function setFilter(f,btn){
+  taskFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderToday();
+}
+function filterCat(c){taskFilter=c;showPage('today');document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));}
+
+async function toggleDone(id){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  t.done=!t.done;if(t.done)t.status='Done';
+  renderAll();
+  await syncTasks();
+  showToast(t.done?'Marked done ✓':'Moved back');
+}
+
+async function moveTask(id,dir){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  const i=COLS.indexOf(t.status);
+  const ni=Math.max(0,Math.min(COLS.length-1,i+dir));
+  t.status=COLS[ni];t.done=t.status==='Done';
+  renderAll();
+  await syncTasks();
+}
+
+async function deleteTask(id){
+  if(!confirm('Delete this task?'))return;
+  tasks=tasks.filter(x=>x.id!==id);
+  renderAll();
+  await syncTasks();
+  showToast('Deleted');
+}
+
+function openModal(col){
+  editId=null;
+  document.getElementById('modalTitle').textContent='Add task';
+  document.getElementById('t-title').value='';
+  document.getElementById('t-cat').value='Apollo';
+  document.getElementById('t-pri').value='High';
+  document.getElementById('t-status').value=col||'Today';
+  document.getElementById('t-due').value=todayKey();
+  document.getElementById('t-notes').value='';
+  document.getElementById('modalBg').classList.add('open');
+  setTimeout(()=>document.getElementById('t-title').focus(),50);
+}
+
+function editTask(id){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  editId=id;
+  document.getElementById('modalTitle').textContent='Edit task';
+  document.getElementById('t-title').value=t.title;
+  document.getElementById('t-cat').value=t.cat;
+  document.getElementById('t-pri').value=t.pri;
+  document.getElementById('t-status').value=t.status;
+  document.getElementById('t-due').value=t.due||'';
+  document.getElementById('t-notes').value=t.notes||'';
+  document.getElementById('modalBg').classList.add('open');
+}
+
+function closeModal(){document.getElementById('modalBg').classList.remove('open');}
+
+async function saveTask(){
+  const title=document.getElementById('t-title').value.trim();
+  if(!title){alert('Please enter a title');return;}
+  if(editId){
+    const t=tasks.find(x=>x.id===editId);
+    if(t){t.title=title;t.cat=document.getElementById('t-cat').value;t.pri=document.getElementById('t-pri').value;t.status=document.getElementById('t-status').value;t.due=document.getElementById('t-due').value;t.notes=document.getElementById('t-notes').value;t.done=t.status==='Done';}
+  } else {
+    tasks.unshift({id:uid(),title,cat:document.getElementById('t-cat').value,pri:document.getElementById('t-pri').value,status:document.getElementById('t-status').value,due:document.getElementById('t-due').value,notes:document.getElementById('t-notes').value,done:false,created:todayKey()});
+  }
+  closeModal();renderAll();
+  await syncTasks();
+  showToast(editId?'Task updated':'Task added ✓');
+}
+
+// PROSPECTS
+function renderProspects(){
+  let p=prospects;
+  if(prospectFilter==='LinkedIn') p=prospects.filter(x=>x.channel==='LinkedIn');
+  else if(prospectFilter==='Apollo') p=prospects.filter(x=>x.channel==='Apollo');
+  document.getElementById('prospectList').innerHTML=p.length?p.map(prospectRow).join(''):'<div class="empty">No prospects logged yet.</div>';
+}
+
+function filterProspects(f,btn){
+  prospectFilter=f;
+  document.querySelectorAll('#page-intel .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderProspects();
+}
+
+function prospectRow(p){
+  const signals=[];
+  if(p.status==='replied'||p.status==='interested') signals.push('<span class="signal sig-reply">Replied</span>');
+  if(p.status==='opened') signals.push('<span class="signal sig-open">Opened email</span>');
+  if(p.status==='connected') signals.push('<span class="signal sig-connect">Connected</span>');
+  if(p.status==='survey_booked') signals.push('<span class="signal sig-reply">Survey booked ✓</span>');
+  if(p.status==='cold') signals.push('<span class="signal sig-cold">No response</span>');
+  const days=p.date?Math.floor((new Date()-new Date(p.date))/86400000):0;
+  return`<div class="prospect-row">
+    <div class="prospect-info">
+      <div class="prospect-name">${p.name} <span style="font-size:11px;color:var(--muted);font-weight:400">· ${p.company}</span></div>
+      <div class="prospect-meta">${p.title||''} · ${p.sector||''} · ${p.channel||''} · ${days}d ago</div>
+      <div class="prospect-signals">${signals.join('')}</div>
+      ${p.notes?`<div style="font-size:11px;color:var(--muted);margin-top:4px">${p.notes}</div>`:''}
+    </div>
+    <div style="display:flex;gap:5px;flex-shrink:0">
+      <button class="task-btn" onclick="editProspect('${p.id}')">Edit</button>
+      <button class="task-btn del" onclick="deleteProspect('${p.id}')">×</button>
+    </div>
+  </div>`;
+}
+
+function buildAlerts(){
+  const alerts=[];
+  const now=new Date();
+  prospects.forEach(p=>{
+    const d=p.date?Math.floor((now-new Date(p.date))/86400000):0;
+    if((p.status==='replied'||p.status==='interested')&&d>=1) alerts.push({type:'hot',name:p.name,company:p.company,reason:`Replied ${d} day${d>1?'s':''} ago, needs a response`,action:'Reply and move toward booking a site survey'});
+    if(p.status==='opened'&&d>=2) alerts.push({type:'warm',name:p.name,company:p.company,reason:`Opened your Apollo email ${d} days ago, no reply yet`,action:'Send a LinkedIn message referencing your email'});
+    if(p.status==='connected'&&d>=1&&d<=3) alerts.push({type:'warm',name:p.name,company:p.company,reason:`Connected on LinkedIn ${d} day${d>1?'s':''} ago`,action:'Send a personalised message using the outreach generator'});
+  });
+  document.getElementById('cnt-intel').textContent=alerts.length;
+  document.getElementById('sv-intel').textContent=alerts.length;
+  const area=document.getElementById('alertArea');
+  const hot=alerts.filter(a=>a.type==='hot');
+  area.innerHTML=hot.length>0?`<div class="alert-banner"><div class="alert-icon">🔥</div><div class="alert-text"><strong>${hot.length} prospect${hot.length>1?'s':''} replied and need${hot.length===1?'s':''} your response.</strong></div><div class="alert-action" onclick="showPage(&quot;intel&quot;)">View →</div></div>`:'';
+}
+
+function openProspectModal(){
+  editProspectId=null;
+  ['p-name','p-company','p-title','p-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('p-date').value=todayKey();
+  document.getElementById('prospectModalBg').classList.add('open');
+  setTimeout(()=>document.getElementById('p-name').focus(),50);
+}
+function editProspect(id){
+  const p=prospects.find(x=>x.id===id);if(!p)return;
+  editProspectId=id;
+  document.getElementById('p-name').value=p.name||'';
+  document.getElementById('p-company').value=p.company||'';
+  document.getElementById('p-title').value=p.title||'';
+  document.getElementById('p-sector').value=p.sector||'Warehousing';
+  document.getElementById('p-channel').value=p.channel||'LinkedIn';
+  document.getElementById('p-segment').value=p.segment||'';
+  document.getElementById('p-status').value=p.status||'connected';
+  document.getElementById('p-date').value=p.date||todayKey();
+  document.getElementById('p-notes').value=p.notes||'';
+  document.getElementById('prospectModalBg').classList.add('open');
+}
+function closeProspectModal(){document.getElementById('prospectModalBg').classList.remove('open');}
+
+async function saveProspect(){
+  const name=document.getElementById('p-name').value.trim();
+  if(!name){alert('Please enter a name');return;}
+  const entry={id:editProspectId||uid(),name,company:document.getElementById('p-company').value,title:document.getElementById('p-title').value,sector:document.getElementById('p-sector').value,channel:document.getElementById('p-channel').value,segment:document.getElementById('p-segment').value,status:document.getElementById('p-status').value,date:document.getElementById('p-date').value,notes:document.getElementById('p-notes').value};
+  if(editProspectId){prospects=prospects.map(p=>p.id===editProspectId?entry:p);}
+  else{prospects.unshift(entry);}
+  closeProspectModal();renderAll();
+  await syncProspects();
+  showToast('Prospect saved ✓');
+}
+
+async function deleteProspect(id){
+  if(!confirm('Remove this prospect?'))return;
+  prospects=prospects.filter(x=>x.id!==id);
+  renderAll();
+  await syncProspects();
+  showToast('Removed');
+}
+
+// AI ANALYSIS
+async function analyseIntel(){
+  const btn=document.getElementById('intelBtn');btn.textContent='Analysing...';btn.disabled=true;
+  if(!prospects.length){document.getElementById('followupList').innerHTML='<div class="empty">No prospects logged yet.</div>';btn.textContent='✦ Analyse now';btn.disabled=false;return;}
+  const now=new Date();
+  const summary=prospects.map(p=>{const d=p.date?Math.floor((now-new Date(p.date))/86400000):0;return`${p.name} at ${p.company} (${p.title}), ${p.sector}, seg ${p.segment||'none'}, ${p.channel}, status: ${p.status}, ${d} days ago, notes: ${p.notes||'none'}`;}).join('\n');
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:`You are a sales assistant for Sean Costello at LED By Vision (LBV), a commercial LED lighting company targeting UK warehouses, offices, industrial sites, hotels, and car dealerships. Rank who needs follow up today. Return ONLY a JSON array: [{"name":"","company":"","urgency":"hot|warm|cold","reason":"","action":"","channel":"LinkedIn|Apollo|Both","priority":1}]. Sort by priority ascending.`,messages:[{role:'user',content:`Prospects:\n${summary}\n\nRank who needs follow up today.`}]})});
+    const data=await res.json();
+    const items=JSON.parse(data.content.map(b=>b.text||'').join('').replace(/```json|```/g,'').trim());
+    document.getElementById('followupList').innerHTML=items.map(i=>`
+      <div class="followup-item urgency-${i.urgency}">
+        <div class="followup-icon fi-${i.urgency}">${i.urgency==='hot'?'🔥':i.urgency==='warm'?'⚡':'❄️'}</div>
+        <div class="followup-content">
+          <div class="followup-name">${i.name} <span style="font-size:11px;color:var(--muted)">· ${i.company}</span></div>
+          <div class="followup-reason">${i.reason}</div>
+          <div class="followup-action">→ ${i.action}</div>
+        </div>
+      </div>`).join('');
+  }catch(e){document.getElementById('followupList').innerHTML='<div class="empty">Could not analyse. Make sure prospects are logged.</div>';}
+  btn.textContent='✦ Analyse now';btn.disabled=false;
+}
+
+// AI SUGGESTIONS
+async function getSuggestions(){
+  const btn=document.getElementById('suggestBtn');btn.textContent='Thinking...';btn.disabled=true;
+  document.getElementById('suggestArea').innerHTML=`<div class="suggest-box"><div style="color:var(--muted);font-size:13px;display:flex;align-items:center;gap:8px"><div class="loading-dots"><span></span><span></span><span></span></div> Generating...</div></div>`;
+  const pending=tasks.filter(t=>!t.done).map(t=>`${t.title} [${t.cat}][${t.pri}]`).join('\n');
+  const dow=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()];
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:`Task planner for Sean Costello at LBV. Today is ${dow}. Return ONLY JSON array: [{"title":"","cat":"Apollo|LinkedIn|Content|IT|Client|Admin","pri":"High|Med|Low","notes":"why now"}]. Suggest 3 specific tasks.`,messages:[{role:'user',content:`Pending:\n${pending||'None'}\n\nSuggest 3 tasks for today.`}]})});
+    const data=await res.json();
+    const items=JSON.parse(data.content.map(b=>b.text||'').join('').replace(/```json|```/g,'').trim());
+    window._sug=items;
+    document.getElementById('suggestArea').innerHTML=`<div class="suggest-box"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">✦ Suggested for today</span><button class="btn btn-sm" onclick="document.getElementById('suggestArea').innerHTML=''">Dismiss</button></div>${items.map((s,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)"><div><div style="font-size:12px">${s.title}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">${s.notes}</div></div><button class="task-btn" onclick="addSug(${i})">+ Add</button></div>`).join('')}</div>`;
+  }catch(e){document.getElementById('suggestArea').innerHTML='';}
+  btn.textContent='✦ AI suggestions';btn.disabled=false;
+}
+
+async function addSug(i){
+  const s=window._sug[i];
+  tasks.unshift({id:uid(),title:s.title,cat:s.cat,pri:s.pri,status:'Today',due:todayKey(),notes:s.notes,done:false,created:todayKey()});
+  renderAll();
+  await syncTasks();
+  showToast('Task added ✓');
+}
+
+// ACTIVITY TRACKER
+async function saveActivityLog(){
+  const entry={date:todayKey(),li_sent:document.getElementById('li-sent').value||'0',li_accept:document.getElementById('li-accept').value||'0',li_reply:document.getElementById('li-reply').value||'0',ap_sent:document.getElementById('ap-sent').value||'0',ap_open:document.getElementById('ap-open').value||'0',ap_reply:document.getElementById('ap-reply').value||'0',notes:''};
+  const existing=activityLog.findIndex(a=>a.date===entry.date);
+  if(existing>=0) activityLog[existing]=entry; else activityLog.unshift(entry);
+  renderActivityHistory();
+  await syncActivity();
+  showToast('Activity saved ✓');
+}
+
+function renderActivityHistory(){
+  const el=document.getElementById('activityHistory');
+  const recent=activityLog.slice(0,7);
+  if(!recent.length){el.innerHTML='<div class="empty">No activity logged yet.</div>';return;}
+  el.innerHTML=`<div class="log-header"><span>Date</span><span>LI Sent</span><span>LI Accept</span><span>LI Reply</span><span>AP Sent</span><span>AP Open</span><span>AP Reply</span></div>`+recent.map(a=>`<div class="log-row"><div class="log-label">${a.date}</div><div style="text-align:center;font-size:12px">${a.li_sent||0}</div><div style="text-align:center;font-size:12px">${a.li_accept||0}</div><div style="text-align:center;font-size:12px">${a.li_reply||0}</div><div style="text-align:center;font-size:12px">${a.ap_sent||0}</div><div style="text-align:center;font-size:12px">${a.ap_open||0}</div><div style="text-align:center;font-size:12px">${a.ap_reply||0}</div></div>`).join('');
+}
+
+// APOLLO
+async function fetchApolloData(){
+  const btn=document.getElementById('refreshBtn');
+  if(btn){btn.textContent='Loading...';btn.disabled=true;}
+  try{
+    const ac=new AbortController();setTimeout(()=>ac.abort(),15000);const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'apollo'}),headers:{'Content-Type':'text/plain'},signal:ac.signal});
+    if(!res.ok) throw new Error('GAS '+res.status);
+    const data=await res.json();
+    const seqs=data.emailer_campaigns||[];
+    renderSequenceRows(seqs);
+    updateOutreachStats(seqs);
+    localStorage.setItem('lbv_apollo_cache',JSON.stringify({sequences:seqs,fetchedAt:new Date().toISOString()}));
+    const el=document.getElementById('lastFetched');
+    if(el) el.textContent='Last updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('apolloStatus').style.display='none';
+  }catch(e){
+    document.getElementById('apolloStatus').style.display='flex';
+    const cached=localStorage.getItem('lbv_apollo_cache');
+    if(cached){const {sequences,fetchedAt}=JSON.parse(cached);renderSequenceRows(sequences);updateOutreachStats(sequences);const el=document.getElementById('lastFetched');if(el)el.textContent='Cached '+new Date(fetchedAt).toLocaleString('en-GB');}
+  }
+  if(btn){btn.textContent='↻ Refresh';btn.disabled=false;}
+}
+
+function getSegment(name){const l=(name||'').toLowerCase();for(const[k,s]of Object.entries(SEG_MAP)){if(l.includes(k))return s;}return null;}
+
+function renderSequenceRows(seqs){
+  const el=document.getElementById('sequenceRows');if(!el)return;
+  if(!seqs.length){el.innerHTML='<div class="empty">No sequences found.</div>';return;}
+  el.innerHTML=seqs.map(s=>{
+    const active=s.active_contact_count||0,delivered=s.num_sent_email_count||0,opened=s.num_opened_email_count||0,replied=s.num_replied_email_count||0;
+    const openRate=delivered>0?Math.round(opened/delivered*100):0;
+    const replyRate=delivered>0?Math.round(replied/delivered*100):0;
+    const seg=getSegment(s.name);
+    const segColor=seg?SEG_COLORS[seg]:'var(--muted)';
+    return`<div style="display:grid;grid-template-columns:200px 70px 70px 70px 70px 70px 70px 70px;gap:6px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div><div style="font-size:12px;font-weight:500">${s.name}</div>${seg?`<div style="font-size:10px;color:${segColor};margin-top:1px">Seg ${seg}</div>`:''}</div>
+      <div style="font-size:11px;color:${s.active?'var(--green)':'var(--muted)'}">${s.active?'● Live':'○ Off'}</div>
+      <div style="text-align:center;font-size:12px">${active}</div>
+      <div style="text-align:center;font-size:12px">${delivered}</div>
+      <div style="text-align:center;font-size:12px">${opened}</div>
+      <div style="text-align:center;font-size:12px;color:${openRate>20?'var(--green)':'var(--muted)'}">${openRate}%</div>
+      <div style="text-align:center;font-size:12px">${replied}</div>
+      <div style="text-align:center;font-size:12px;color:${replyRate>5?'var(--green)':replyRate>2?'var(--amber)':'var(--muted)'}">${replyRate}%</div>
+    </div>`;
+  }).join('');
+}
+
+function updateOutreachStats(seqs){
+  const totalActive=seqs.reduce((a,s)=>a+(s.active_contact_count||0),0);
+  const totalDelivered=seqs.reduce((a,s)=>a+(s.num_sent_email_count||0),0);
+  const totalReplied=seqs.reduce((a,s)=>a+(s.num_replied_email_count||0),0);
+  const replyRate=totalDelivered>0?Math.round(totalReplied/totalDelivered*100):0;
+  document.getElementById('od-active').textContent=totalActive;
+  document.getElementById('od-delivered').textContent=totalDelivered;
+  document.getElementById('od-replies').textContent=totalReplied;
+  document.getElementById('od-reply-rate').textContent=replyRate+'%';
+  renderSegPerfBars(seqs);
+}
+
+function renderSegPerfBars(seqs){
+  const el=document.getElementById('segPerfBars');if(!el)return;
+  const segs=['A','B','C','D','E'];
+  el.innerHTML=segs.map(seg=>{
+    const ss=seqs.filter(s=>getSegment(s.name)===seg);
+    const d=ss.reduce((a,s)=>a+(s.num_sent_email_count||0),0);
+    const r=ss.reduce((a,s)=>a+(s.num_replied_email_count||0),0);
+    const rate=d>0?Math.round(r/d*100):0;
+    return`<div class="chart-bar-row"><div class="chart-bar-label" style="color:${SEG_COLORS[seg]}">Seg ${seg} ${SEG_NAMES[seg]}</div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${Math.min(rate*5,100)}%;background:${SEG_COLORS[seg]}"></div></div><div class="chart-bar-val">${rate}%</div></div>`;
+  }).join('');
+}
+
+// PIPELINE
+function updatePipelineStats(){
+  const surveys=pipelineEntries.filter(e=>['Survey booked','Survey done','Quoted','Order won'].includes(e.stage)).length;
+  const done=pipelineEntries.filter(e=>['Survey done','Quoted','Order won'].includes(e.stage)).length;
+  const orders=pipelineEntries.filter(e=>e.stage==='Order won').length;
+  document.getElementById('pl-total').textContent=pipelineEntries.length;
+  document.getElementById('pl-survey').textContent=surveys;
+  document.getElementById('pl-done').textContent=done;
+  document.getElementById('pl-order').textContent=orders;
+  document.getElementById('cnt-pipeline').textContent=pipelineEntries.length;
+  renderPipelineRows();
+}
+
+function renderPipelineRows(){
+  const el=document.getElementById('pipelineRows');if(!el)return;
+  if(!pipelineEntries.length){el.innerHTML='<div class="empty">No entries yet. Log replies and surveys as they come in.</div>';return;}
+  el.innerHTML=pipelineEntries.map(e=>`
+    <div class="pipeline-row">
+      <div style="flex:1">
+        <div class="prospect-name">${e.company} <span style="font-size:11px;color:var(--muted);font-weight:400">· ${e.contact||''}</span></div>
+        <div class="prospect-meta">${e.date} · Seg ${e.seg} · ${e.source}</div>
+        <div class="prospect-signals" style="margin-top:4px"><span class="signal sig-reply">${e.stage}</span></div>
+        ${e.notes?`<div style="font-size:11px;color:var(--muted);margin-top:3px">${e.notes}</div>`:''}
+      </div>
+      <button class="task-btn del" onclick="deletePipelineEntry('${e.id}')">×</button>
+    </div>`).join('');
+}
+
+function openPipelineModal(){
+  ['pl-company','pl-contact','pl-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pipelineModalBg').classList.add('open');
+  setTimeout(()=>document.getElementById('pl-company').focus(),50);
+}
+function closePipelineModal(){document.getElementById('pipelineModalBg').classList.remove('open');}
+
+async function savePipelineEntry(){
+  const company=document.getElementById('pl-company').value.trim();
+  if(!company){alert('Please enter a company name');return;}
+  const entry={id:uid(),date:new Date().toLocaleDateString('en-GB'),company,contact:document.getElementById('pl-contact').value,seg:document.getElementById('pl-seg').value,source:document.getElementById('pl-source').value,stage:document.getElementById('pl-stage').value,notes:document.getElementById('pl-notes').value};
+  pipelineEntries.unshift(entry);
+  closePipelineModal();updatePipelineStats();
+  await syncPipeline();
+  showToast('Pipeline entry saved ✓');
+}
+
+async function deletePipelineEntry(id){
+  if(!confirm('Remove this entry?'))return;
+  pipelineEntries=pipelineEntries.filter(e=>e.id!==id);
+  updatePipelineStats();
+  await syncPipeline();
+  showToast('Removed');
+}
+
+// UTILS
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
+
+// INBOX
+let inboxEmails = [];
+let inboxFilter = 'all';
+
+async function loadInbox() {
+  // Show immediately, load in background
+  renderInbox();
+  try {
+    const ic=new AbortController();setTimeout(()=>ic.abort(),15000);
+    const res = await fetch(GAS_URL, {method:'POST', body:JSON.stringify({action:'read',sheet:'Inbox'}), headers:{'Content-Type':'text/plain'},signal:ic.signal});
+    const data = await res.json();
+    inboxEmails = data.data || [];
+    renderInbox();
+    updateInboxCount();
+    const el = document.getElementById('inboxSyncedAt');
+    if(inboxEmails.length && inboxEmails[0].syncedAt) {
+      el.textContent = 'Last synced by Claude: ' + new Date(inboxEmails[0].syncedAt).toLocaleString('en-GB');
+    }
+  } catch(e) {
+    const el = document.getElementById('inboxSyncedAt');
+    if(el) el.textContent = 'Could not reach server. Ask Claude to sync inbox.';
+  }
+}
+
+function updateInboxCount() {
+  const hot = inboxEmails.filter(e => e.urgency === 'hot' || (e.isRead === 'FALSE' || e.isRead === false)).length;
+  const badge = document.getElementById('cnt-inbox');
+  if(badge) badge.textContent = hot;
+  // Alert on today page
+  const hotEmails = inboxEmails.filter(e => e.urgency === 'hot');
+  const area = document.getElementById('alertArea');
+  if(hotEmails.length && area && !area.innerHTML) {
+    area.innerHTML = '<div class="alert-banner"><div class="alert-icon">✉</div><div class="alert-text"><strong>' + hotEmails.length + ' email' + (hotEmails.length > 1 ? 's' : '') + ' need' + (hotEmails.length === 1 ? 's' : '') + ' immediate attention.</strong> ' + hotEmails.map(e => e.sender).join(', ') + '</div><div class="alert-action" onclick="showPage(&quot;inbox&quot;)">View inbox →</div></div>';
+  }
+}
+
+function filterInbox(f, btn) {
+  inboxFilter = f;
+  document.querySelectorAll('#page-inbox .btn').forEach(b => b.style.background = '');
+  if(btn) btn.style.background = 'var(--surface2)';
+  renderInbox();
+}
+
+function renderInbox() {
+  const el = document.getElementById('inboxList');
+  if(!el) return;
+  let emails = inboxEmails;
+  if(inboxFilter === 'hot') emails = emails.filter(e => e.urgency === 'hot');
+  else if(inboxFilter === 'warm') emails = emails.filter(e => e.urgency === 'warm');
+  else if(inboxFilter === 'unread') emails = emails.filter(e => e.isRead === 'FALSE' || e.isRead === false);
+  if(!emails.length) { el.innerHTML = '<div class="empty">No emails in this view.</div>'; return; }
+  el.innerHTML = emails.map(function(e) {
+    var unread = e.isRead === 'FALSE' || e.isRead === false;
+    var urgClass = e.urgency === 'hot' ? 'urgency-hot' : e.urgency === 'warm' ? 'urgency-warm' : '';
+    var badgeClass = e.urgency === 'hot' ? 'urg-hot' : e.urgency === 'warm' ? 'urg-warm' : 'urg-info';
+    var badgeText = e.urgency === 'hot' ? 'HOT' : e.urgency === 'warm' ? 'WARM' : 'INFO';
+    var date = e.received ? new Date(e.received).toLocaleDateString('en-GB') : '';
+    var summary = e.summary ? String(e.summary).slice(0, 160) + (String(e.summary).length > 160 ? '...' : '') : '';
+    var card = document.createElement('div');
+    card.className = 'inbox-card ' + urgClass + (unread ? ' unread' : '');
+    if(e.webLink) card.addEventListener('click', function() { window.open(e.webLink, '_blank'); });
+    card.innerHTML = '<div class="inbox-meta"><span class="urg-badge ' + badgeClass + '">' + badgeText + '</span><span class="inbox-sender">' + (e.sender || '') + '</span><span class="inbox-date">' + date + '</span></div><div class="inbox-subject">' + (e.subject || '') + '</div>' + (summary ? '<div class="inbox-summary">' + summary + '</div>' : '') + '<div style="font-size:10px;color:var(--accent);margin-top:4px">Click to open in Outlook ↗</div>';
+    return card.outerHTML;
+  }).join('');
+}
+
+document.getElementById('modalBg').addEventListener('click',function(e){if(e.target===this)closeModal()});
+document.getElementById('prospectModalBg').addEventListener('click',function(e){if(e.target===this)closeProspectModal()});
+document.getElementById('pipelineModalBg').addEventListener('click',function(e){if(e.target===this)closePipelineModal()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeProspectModal();closePipelineModal()}if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();openModal()}});
+
+const now=new Date();
+document.getElementById('todayFull').textContent=now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+loadAll();
+setTimeout(loadInbox, 3000);
+</script>
+</body>
+</html>
