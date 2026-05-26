@@ -1027,7 +1027,7 @@ function renderInbox() {
     const urgClass = e.urgency === 'hot' ? 'urgency-hot' : e.urgency === 'warm' ? 'urgency-warm' : '';
     const badge = e.urgency === 'hot' ? '<span class="urg-badge urg-hot">HOT</span>' : e.urgency === 'warm' ? '<span class="urg-badge urg-warm">WARM</span>' : '<span class="urg-badge urg-info">INFO</span>';
     const date = e.received ? new Date(e.received).toLocaleDateString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
-    return '<div class="inbox-card ' + urgClass + (unread ? ' unread' : '') + '" onclick="window.open('' + e.webLink + '', '_blank')">' +
+    return '<div class="inbox-card ' + urgClass + (unread ? ' unread' : '') + '" onclick="window.open(\'' + e.webLink + '\',\'_blank\')">' +
       '<div class="inbox-meta">' + badge + '<span class="inbox-sender">' + (e.sender || '') + '</span><span class="inbox-date">' + date + '</span></div>' +
       '<div class="inbox-subject">' + (e.subject || '') + '</div>' +
       (e.summary ? '<div class="inbox-summary">' + String(e.summary).slice(0, 160) + (e.summary.length > 160 ? '...' : '') + '</div>' : '') +
