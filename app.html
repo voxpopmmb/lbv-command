@@ -1086,23 +1086,89 @@ function renderInbox(){
     var bc=e.urgency==='hot'?'uh':e.urgency==='warm'?'uw':'ui';
     var bt=e.urgency==='hot'?'HOT':e.urgency==='warm'?'WARM':'INFO';
     var dt=e.received?new Date(e.received).toLocaleDateString('en-GB'):'';
-    var sm=e.summary?String(e.summary).slice(0,160)+(String(e.summary).length>160?'...':''):'';
-    html+='<div class="ic '+(unread?'iu ':'')+uc+'" id="ic-'+e.id+'">';
-    html+='<div class="im"><span class="ub '+bc+'">'+bt+'</span><span class="isd">'+(e.sender||'')+'</span><span class="idate">'+dt+'</span></div>';
-    html+='<div class="isb">'+(e.subject||'')+'</div>';
-    if(sm)html+='<div class="ism">'+sm+'</div>';
-    html+='<div style="font-size:10px;color:var(--acc);margin-top:4px">Click to open in Outlook ↗</div>';
+    var sm=e.summary?String(e.summary):'';
+    html+='<div class="ic '+(unread?'iu ':'')+uc+'" id="ic-'+e.id+'" style="cursor:pointer">';
+    html+='<div class="im" onclick="toggleEmail(''+e.id+'')">';
+    html+='<span class="ub '+bc+'">'+bt+'</span>';
+    html+='<span class="isd">'+(e.sender||'')+'</span>';
+    html+='<span class="idate">'+dt+'</span>';
+    html+='<span style="margin-left:8px;font-size:10px;color:var(--mut)" id="arr-'+e.id+'">▼</span>';
+    html+='</div>';
+    html+='<div class="isb" onclick="toggleEmail(''+e.id+'')">'+(e.subject||'')+'</div>';
+    html+='<div id="exp-'+e.id+'" style="display:none;margin-top:10px">';
+    html+='<div style="font-size:12px;color:var(--txt);line-height:1.6;padding:10px;background:var(--bg);border-radius:6px;margin-bottom:10px">'+sm+'</div>';
+    html+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
+    html+='<button class="tb" onclick="replyEmail(''+e.id+'')">↩ Reply in Outlook</button>';
+    html+='<button class="tb" onclick="taskFromEmail(''+e.id+'')">+ Create task</button>';
+    html+='<button class="tb" onclick="pipeFromEmail(''+e.id+'')">→ Log to pipeline</button>';
+    html+='<button class="tb" onclick="prospFromEmail(''+e.id+'')">+ Log prospect</button>';
+    html+='</div></div>';
     html+='</div>';
   });
   el.innerHTML=html;
-  emails.forEach(function(e){
-    if(e.webLink){
-      var el2=document.getElementById('ic-'+e.id);
-      if(el2){
-        el2.addEventListener('click',function(){window.open(e.webLink,'_blank')});
-      }
-    }
-  });
+}
+
+function toggleEmail(id){
+  var exp=document.getElementById('exp-'+id);
+  var arr=document.getElementById('arr-'+id);
+  if(!exp)return;
+  if(exp.style.display==='none'){
+    exp.style.display='block';
+    if(arr)arr.textContent='▲';
+  } else {
+    exp.style.display='none';
+    if(arr)arr.textContent='▼';
+  }
+}
+
+function getEmail(id){
+  return inbox.find(function(e){return e.id===id});
+}
+
+function replyEmail(id){
+  var e=getEmail(id);
+  if(!e||!e.webLink)return;
+  window.open(e.webLink,'_blank');
+}
+
+function taskFromEmail(id){
+  var e=getEmail(id);
+  if(!e)return;
+  document.getElementById('mtitle').textContent='Add task';
+  document.getElementById('t-ttl').value='Follow up: '+e.subject;
+  document.getElementById('t-cat').value='Client';
+  document.getElementById('t-pri').value='High';
+  document.getElementById('t-col').value='Today';
+  document.getElementById('t-due').value=today();
+  document.getElementById('t-nts').value='From: '+e.sender+'. '+e.summary.slice(0,120);
+  document.getElementById('mbTask').classList.add('open');
+  setTimeout(function(){document.getElementById('t-ttl').focus()},50);
+}
+
+function pipeFromEmail(id){
+  var e=getEmail(id);
+  if(!e)return;
+  var parts=e.sender.split(' - ');
+  var contact=parts[0]||'';
+  var company=parts[1]||'';
+  document.getElementById('pl-co').value=company;
+  document.getElementById('pl-ct').value=contact;
+  document.getElementById('pl-nt').value=e.subject+' - '+e.summary.slice(0,100);
+  document.getElementById('mbPipe').classList.add('open');
+  setTimeout(function(){document.getElementById('pl-co').focus()},50);
+}
+
+function prospFromEmail(id){
+  var e=getEmail(id);
+  if(!e)return;
+  var parts=e.sender.split(' - ');
+  document.getElementById('p-nm').value=parts[0]||'';
+  document.getElementById('p-co').value=parts[1]||'';
+  document.getElementById('p-st').value='replied';
+  document.getElementById('p-dt').value=today();
+  document.getElementById('p-nt').value=e.subject+'. '+e.summary.slice(0,100);
+  document.getElementById('mbProsp').classList.add('open');
+  setTimeout(function(){document.getElementById('p-nm').focus()},50);
 }
 
 // MODALS CLOSE
