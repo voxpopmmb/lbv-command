@@ -563,7 +563,7 @@ async function pollInbox(){
   try{
     var r=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{"Content-Type":"application/json","x-api-key":"sk-ant-api03-CXkh1DNggEP1kcz9ywNAMseu8djUgwswt9geNqIIRvxY3wF2nfeAxDbcSh4BM44YJzeYyMGEJCh-FOBGyWOLPg-t57UBWAA","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:1500,
@@ -885,7 +885,7 @@ async function doIntel(){
   var now=new Date();
   var sum=prospects.map(function(p){var d=p.date?Math.floor((now-new Date(p.date))/86400000):0;return p.name+' at '+p.company+' ('+p.title+'), '+p.sector+', seg '+(p.segment||'none')+', '+p.channel+', status: '+p.status+', '+d+' days ago, notes: '+(p.notes||'none');}).join('\n');
   try{
-    var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:'You are a sales assistant for Sean at LED By Vision. Return ONLY a JSON array: [{"name":"","company":"","urgency":"hot|warm|cold","reason":"","action":"","priority":1}]. Sort by priority.',messages:[{role:'user',content:'Prospects:\n'+sum+'\n\nRank who needs follow up today.'}]})});
+    var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{"Content-Type":"application/json","x-api-key":"sk-ant-api03-CXkh1DNggEP1kcz9ywNAMseu8djUgwswt9geNqIIRvxY3wF2nfeAxDbcSh4BM44YJzeYyMGEJCh-FOBGyWOLPg-t57UBWAA","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:'You are a sales assistant for Sean at LED By Vision. Return ONLY a JSON array: [{"name":"","company":"","urgency":"hot|warm|cold","reason":"","action":"","priority":1}]. Sort by priority.',messages:[{role:'user',content:'Prospects:\n'+sum+'\n\nRank who needs follow up today.'}]})});
     var data=await r.json();
     var txt=data.content.map(function(b){return b.text||''}).join('').replace(/```json|```/g,'').trim();
     var items=JSON.parse(txt);
@@ -909,7 +909,7 @@ async function getSugg(){
   var pending=tasks.filter(function(t){return !t.done}).map(function(t){return t.title+' ['+t.cat+']['+t.pri+']'}).join('\n');
   var dow=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()];
   try{
-    var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:'Task planner for Sean at LBV. Today is '+dow+'. Return ONLY JSON array: [{"title":"","cat":"Apollo|LinkedIn|Content|IT|Client|Admin","pri":"High|Med|Low","notes":"why now"}]. Suggest 3 tasks.',messages:[{role:'user',content:'Pending:\n'+(pending||'None')+'\n\nSuggest 3 tasks for today.'}]})});
+    var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{"Content-Type":"application/json","x-api-key":"sk-ant-api03-CXkh1DNggEP1kcz9ywNAMseu8djUgwswt9geNqIIRvxY3wF2nfeAxDbcSh4BM44YJzeYyMGEJCh-FOBGyWOLPg-t57UBWAA","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:'Task planner for Sean at LBV. Today is '+dow+'. Return ONLY JSON array: [{"title":"","cat":"Apollo|LinkedIn|Content|IT|Client|Admin","pri":"High|Med|Low","notes":"why now"}]. Suggest 3 tasks.',messages:[{role:'user',content:'Pending:\n'+(pending||'None')+'\n\nSuggest 3 tasks for today.'}]})});
     var data=await r.json();
     var txt=data.content.map(function(b){return b.text||''}).join('').replace(/```json|```/g,'').trim();
     var items=JSON.parse(txt);
