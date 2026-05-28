@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LBV Quick Add</title>
+<style>
+  :root {
+    --bg: #0a0f0d;
+    --sur: #111a16;
+    --bdr: #1e2e26;
+    --grn: #1a7a4a;
+    --grn2: #22a060;
+    --acc: #2ecc71;
+    --txt: #e8f0eb;
+    --mut: #6b8f7a;
+    --red: #e74c3c;
+    --amb: #f39c12;
+    --blu: #3498db;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--txt);
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 0 40px;
+    overflow-x: hidden;
+  }
+
+  .header {
+    width: 100%;
+    background: var(--sur);
+    border-bottom: 1px solid var(--bdr);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-logo {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--acc);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .header-link {
+    font-size: 11px;
+    color: var(--mut);
+    text-decoration: none;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 480px;
+    padding: 24px 20px 0;
+  }
+
+  /* TYPE SELECTOR */
+  .type-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .type-btn {
+    background: var(--sur);
+    border: 1.5px solid var(--bdr);
+    border-radius: 12px;
+    padding: 16px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--mut);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .type-btn .icon { font-size: 22px; display: block; margin-bottom: 6px; }
+
+  .type-btn.active {
+    border-color: var(--acc);
+    background: rgba(46,204,113,0.08);
+    color: var(--acc);
+  }
+
+  /* VOICE BUTTON */
+  .voice-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 28px;
+  }
+
+  .voice-ring {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    margin-bottom: 16px;
+  }
+
+  .voice-ring::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 2px solid var(--bdr);
+    transition: all 0.3s;
+  }
+
+  .voice-ring.recording::before {
+    border-color: var(--red);
+    animation: ring-pulse 1s ease-in-out infinite;
+    inset: -16px;
+  }
+
+  @keyframes ring-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.05); }
+  }
+
+  .voice-btn {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: var(--grn);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(26,122,74,0.4);
+  }
+
+  .voice-btn:active { transform: scale(0.95); }
+
+  .voice-btn.recording {
+    background: var(--red);
+    box-shadow: 0 8px 32px rgba(231,76,60,0.5);
+    animation: btn-pulse 0.8s ease-in-out infinite;
+  }
+
+  @keyframes btn-pulse {
+    0%, 100% { box-shadow: 0 8px 32px rgba(231,76,60,0.5); }
+    50% { box-shadow: 0 8px 48px rgba(231,76,60,0.8); }
+  }
+
+  .voice-btn .mic-icon { font-size: 36px; }
+  .voice-btn .voice-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.8); }
+
+  .voice-status {
+    font-size: 13px;
+    color: var(--mut);
+    text-align: center;
+    min-height: 20px;
+  }
+
+  .voice-status.recording { color: var(--red); }
+  .voice-status.processing { color: var(--amb); }
+  .voice-status.done { color: var(--acc); }
+
+  /* WAVEFORM */
+  .waveform {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 32px;
+    margin: 8px 0;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .waveform.active { opacity: 1; }
+
+  .wave-bar {
+    width: 3px;
+    background: var(--red);
+    border-radius: 2px;
+    animation: wave 0.6s ease-in-out infinite;
+    min-height: 4px;
+  }
+
+  .wave-bar:nth-child(1) { animation-delay: 0s; }
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+  .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+  .wave-bar:nth-child(6) { animation-delay: 0.5s; }
+  .wave-bar:nth-child(7) { animation-delay: 0.3s; }
+  .wave-bar:nth-child(8) { animation-delay: 0.1s; }
+
+  @keyframes wave {
+    0%, 100% { height: 4px; }
+    50% { height: 24px; }
+  }
+
+  /* TRANSCRIPT CARD */
+  .transcript-card {
+    background: var(--sur);
+    border: 1.5px solid var(--bdr);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 20px;
+    display: none;
+  }
+
+  .transcript-card.visible { display: block; }
+
+  .transcript-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mut);
+    margin-bottom: 10px;
+  }
+
+  .transcript-text {
+    font-size: 15px;
+    color: var(--txt);
+    line-height: 1.5;
+    background: transparent;
+    border: none;
+    width: 100%;
+    resize: none;
+    min-height: 60px;
+    font-family: inherit;
+  }
+
+  .transcript-text:focus { outline: none; }
+
+  /* PARSED FIELDS */
+  .parsed-section {
+    display: none;
+    margin-bottom: 20px;
+  }
+
+  .parsed-section.visible { display: block; }
+
+  .field-group {
+    margin-bottom: 14px;
+  }
+
+  .field-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mut);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .field-input {
+    width: 100%;
+    background: var(--sur);
+    border: 1.5px solid var(--bdr);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--txt);
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+
+  .field-input:focus {
+    outline: none;
+    border-color: var(--grn2);
+  }
+
+  select.field-input option { background: var(--sur); }
+
+  /* ACTION BUTTONS */
+  .action-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .btn-save {
+    background: var(--grn);
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+
+  .btn-save:active { transform: scale(0.97); background: var(--grn2); }
+
+  .btn-clear {
+    background: transparent;
+    border: 1.5px solid var(--bdr);
+    border-radius: 12px;
+    padding: 16px;
+    color: var(--mut);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-clear:active { border-color: var(--txt); color: var(--txt); }
+
+  /* SAVED TOAST */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--acc);
+    color: #0a0f0d;
+    padding: 14px 28px;
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 700;
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 999;
+    white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* OR DIVIDER */
+  .or-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .or-divider::before, .or-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--bdr);
+  }
+
+  .or-divider span { font-size: 11px; color: var(--mut); font-weight: 600; }
+
+  /* TYPE QUICK TEXT */
+  .quick-text-btn {
+    width: 100%;
+    background: var(--sur);
+    border: 1.5px solid var(--bdr);
+    border-radius: 12px;
+    padding: 14px;
+    color: var(--mut);
+    font-size: 13px;
+    cursor: pointer;
+    text-align: center;
+    font-family: inherit;
+    transition: all 0.15s;
+    margin-bottom: 20px;
+  }
+
+  .quick-text-btn:active { border-color: var(--grn2); color: var(--txt); }
+
+  /* RECENT */
+  .recent-section { margin-top: 8px; }
+  .recent-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mut);
+    margin-bottom: 12px;
+  }
+
+  .recent-item {
+    background: var(--sur);
+    border: 1px solid var(--bdr);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .recent-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .recent-dot.task { background: var(--acc); }
+  .recent-dot.prospect { background: var(--blu); }
+  .recent-dot.pipeline { background: var(--amb); }
+  .recent-dot.activity { background: var(--mut); }
+
+  .recent-text { font-size: 13px; color: var(--txt); flex: 1; }
+  .recent-time { font-size: 11px; color: var(--mut); }
+
+  .no-support {
+    background: rgba(231,76,60,0.1);
+    border: 1px solid rgba(231,76,60,0.3);
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 13px;
+    color: var(--red);
+    text-align: center;
+    margin-bottom: 20px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-logo">LBV Quick Add</span>
+  <a href="https://voxpopmmb.github.io/lbv-command/" class="header-link">← Command Centre</a>
+</div>
+
+<div class="container">
+
+  <!-- TYPE SELECTOR -->
+  <div class="type-grid">
+    <div class="type-btn active" data-type="task" onclick="setType('task',this)">
+      <span class="icon">✓</span>Task
+    </div>
+    <div class="type-btn" data-type="prospect" onclick="setType('prospect',this)">
+      <span class="icon">👤</span>Prospect
+    </div>
+    <div class="type-btn" data-type="pipeline" onclick="setType('pipeline',this)">
+      <span class="icon">📊</span>Pipeline
+    </div>
+    <div class="type-btn" data-type="activity" onclick="setType('activity',this)">
+      <span class="icon">📋</span>Activity
+    </div>
+  </div>
+
+  <div class="no-support" id="noSupport">
+    Voice recording not supported on this browser. Please use the text input below.
+  </div>
+
+  <!-- VOICE SECTION -->
+  <div class="voice-section">
+    <div class="voice-ring" id="voiceRing">
+      <button class="voice-btn" id="voiceBtn" ontouchstart="startRecord(event)" ontouchend="stopRecord(event)" onmousedown="startRecord(event)" onmouseup="stopRecord(event)">
+        <span class="mic-icon">🎤</span>
+        <span class="voice-label" id="voiceLabel">Hold to speak</span>
+      </button>
+    </div>
+    <div class="waveform" id="waveform">
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+    </div>
+    <div class="voice-status" id="voiceStatus">Hold the button and speak clearly</div>
+  </div>
+
+  <!-- TRANSCRIPT -->
+  <div class="transcript-card" id="transcriptCard">
+    <div class="transcript-label">Heard</div>
+    <textarea class="transcript-text" id="transcriptText" rows="3" placeholder="Your words will appear here..."></textarea>
+  </div>
+
+  <!-- OR DIVIDER -->
+  <div class="or-divider"><span>or type it</span></div>
+
+  <!-- QUICK TYPE -->
+  <textarea class="quick-text-btn" id="quickText" rows="2" placeholder="Type your note here instead..."></textarea>
+
+  <!-- PARSED FIELDS -->
+  <div class="parsed-section" id="parsedSection">
+    <div id="fieldsContainer"></div>
+    <div class="action-row">
+      <button class="btn-save" onclick="saveEntry()">Save to LBV</button>
+      <button class="btn-clear" onclick="clearAll()">Clear</button>
+    </div>
+  </div>
+
+  <!-- RECENT -->
+  <div class="recent-section">
+    <div class="recent-title">Recently added</div>
+    <div id="recentList"><div style="font-size:13px;color:var(--mut);text-align:center;padding:20px 0;">Nothing added yet today</div></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast">Saved to LBV Command</div>
+
+<script>
+const GAS = 'https://script.google.com/macros/s/AKfycbwygMktf2B8tK6S_s3Lg2yKZICIV11c7DD5bCxSgOMszF5vCGfva79DLaaX2G-kKNb6/exec';
+const ANTHROPIC_KEY = 'sk-ant-api03-CXkh1DNggEP1kcz9ywNAMseu8djUgwswt9geNqIIRvxY3wF2nfeAxDbcSh4BM44YJzeYyMGEJCh-FOBGyWOLPg-t57UBWAA';
+
+let currentType = 'task';
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let recentItems = [];
+
+// Check voice support
+if (!navigator.mediaDevices || !window.MediaRecorder) {
+  document.getElementById('noSupport').style.display = 'block';
+}
+
+function setType(type, el) {
+  currentType = type;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  clearAll();
+}
+
+async function startRecord(e) {
+  e.preventDefault();
+  if (isRecording) return;
+  if (!navigator.mediaDevices) {
+    document.getElementById('voiceStatus').textContent = 'Use the text box below instead';
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+    isRecording = true;
+
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.start();
+
+    document.getElementById('voiceBtn').classList.add('recording');
+    document.getElementById('voiceRing').classList.add('recording');
+    document.getElementById('waveform').classList.add('active');
+    document.getElementById('voiceLabel').textContent = 'Recording...';
+    document.getElementById('voiceStatus').textContent = 'Listening...';
+    document.getElementById('voiceStatus').className = 'voice-status recording';
+  } catch(err) {
+    document.getElementById('voiceStatus').textContent = 'Microphone access denied. Use text below.';
+  }
+}
+
+async function stopRecord(e) {
+  e.preventDefault();
+  if (!isRecording || !mediaRecorder) return;
+  isRecording = false;
+
+  mediaRecorder.stop();
+  mediaRecorder.stream.getTracks().forEach(t => t.stop());
+
+  document.getElementById('voiceBtn').classList.remove('recording');
+  document.getElementById('voiceRing').classList.remove('recording');
+  document.getElementById('waveform').classList.remove('active');
+  document.getElementById('voiceLabel').textContent = 'Hold to speak';
+  document.getElementById('voiceStatus').textContent = 'Processing...';
+  document.getElementById('voiceStatus').className = 'voice-status processing';
+
+  mediaRecorder.onstop = async () => {
+    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    await transcribeAndParse(blob);
+  };
+}
+
+async function transcribeAndParse(audioBlob) {
+  try {
+    // Convert to base64
+    const reader = new FileReader();
+    reader.readAsDataURL(audioBlob);
+    reader.onloadend = async () => {
+      const base64 = reader.result.split(',')[1];
+
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 500,
+          system: 'You are a voice transcription assistant. The user has recorded a voice note to add to their LBV Command business tool. Transcribe what they said accurately and return ONLY the transcribed text, nothing else.',
+          messages: [{
+            role: 'user',
+            content: [{
+              type: 'text',
+              text: 'Transcribe this voice recording:'
+            }]
+          }]
+        })
+      });
+
+      // Since we can't send audio directly, fall back to Web Speech API
+      useWebSpeech();
+    };
+  } catch(e) {
+    useWebSpeech();
+  }
+}
+
+function useWebSpeech() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    document.getElementById('voiceStatus').textContent = 'Could not transcribe. Check the text box below.';
+    document.getElementById('voiceStatus').className = 'voice-status';
+    return;
+  }
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new SR();
+  recognition.lang = 'en-GB';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    document.getElementById('transcriptText').value = text;
+    document.getElementById('transcriptCard').classList.add('visible');
+    document.getElementById('quickText').value = text;
+    document.getElementById('voiceStatus').textContent = 'Got it. Review and save below.';
+    document.getElementById('voiceStatus').className = 'voice-status done';
+    showFields(text);
+  };
+
+  recognition.onerror = () => {
+    document.getElementById('voiceStatus').textContent = 'Could not hear clearly. Type it below.';
+    document.getElementById('voiceStatus').className = 'voice-status';
+  };
+
+  recognition.start();
+}
+
+// Override: use Web Speech API directly on hold
+async function startRecord(e) {
+  e.preventDefault();
+  if (isRecording) return;
+  isRecording = true;
+
+  document.getElementById('voiceBtn').classList.add('recording');
+  document.getElementById('voiceRing').classList.add('recording');
+  document.getElementById('waveform').classList.add('active');
+  document.getElementById('voiceLabel').textContent = 'Recording...';
+  document.getElementById('voiceStatus').textContent = 'Listening...';
+  document.getElementById('voiceStatus').className = 'voice-status recording';
+
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    document.getElementById('noSupport').style.display = 'block';
+    stopVisuals();
+    return;
+  }
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  window._recognition = new SR();
+  window._recognition.lang = 'en-GB';
+  window._recognition.interimResults = false;
+  window._recognition.continuous = true;
+
+  window._recognition.onresult = (e) => {
+    let text = '';
+    for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript + ' ';
+    text = text.trim();
+    document.getElementById('transcriptText').value = text;
+    document.getElementById('quickText').value = text;
+  };
+
+  window._recognition.start();
+}
+
+async function stopRecord(e) {
+  e.preventDefault();
+  if (!isRecording) return;
+  isRecording = false;
+
+  if (window._recognition) window._recognition.stop();
+  stopVisuals();
+
+  setTimeout(() => {
+    const text = document.getElementById('transcriptText').value || document.getElementById('quickText').value;
+    if (text) {
+      document.getElementById('transcriptCard').classList.add('visible');
+      document.getElementById('voiceStatus').textContent = 'Got it. Review and save below.';
+      document.getElementById('voiceStatus').className = 'voice-status done';
+      showFields(text);
+    } else {
+      document.getElementById('voiceStatus').textContent = 'Nothing heard. Try again or type below.';
+      document.getElementById('voiceStatus').className = 'voice-status';
+    }
+  }, 600);
+}
+
+function stopVisuals() {
+  document.getElementById('voiceBtn').classList.remove('recording');
+  document.getElementById('voiceRing').classList.remove('recording');
+  document.getElementById('waveform').classList.remove('active');
+  document.getElementById('voiceLabel').textContent = 'Hold to speak';
+}
+
+// Show typed text on blur
+document.getElementById('quickText').addEventListener('blur', function() {
+  const text = this.value.trim();
+  if (text) showFields(text);
+});
+
+document.getElementById('quickText').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    const text = this.value.trim();
+    if (text) showFields(text);
+  }
+});
+
+function showFields(text) {
+  const container = document.getElementById('fieldsContainer');
+  container.innerHTML = '';
+
+  if (currentType === 'task') {
+    container.innerHTML = `
+      <div class="field-group">
+        <label class="field-label">Task title</label>
+        <input class="field-input" id="f-title" value="${escHtml(text)}" type="text" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Category</label>
+        <select class="field-input" id="f-cat">
+          <option>Apollo</option><option>LinkedIn</option><option>Client</option>
+          <option>Admin</option><option>IT</option><option>Personal</option><option>Content</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Priority</label>
+        <select class="field-input" id="f-pri">
+          <option>High</option><option selected>Med</option><option>Low</option>
+        </select>
+      </div>`;
+  } else if (currentType === 'prospect') {
+    container.innerHTML = `
+      <div class="field-group">
+        <label class="field-label">Name</label>
+        <input class="field-input" id="f-name" value="${escHtml(text)}" type="text" placeholder="Full name" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Company</label>
+        <input class="field-input" id="f-company" type="text" placeholder="Company name" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Role</label>
+        <input class="field-input" id="f-role" type="text" placeholder="Job title" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Channel</label>
+        <select class="field-input" id="f-ch">
+          <option>LinkedIn</option><option>Apollo</option><option>Both</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Notes</label>
+        <input class="field-input" id="f-notes" type="text" placeholder="Any context" />
+      </div>`;
+  } else if (currentType === 'pipeline') {
+    container.innerHTML = `
+      <div class="field-group">
+        <label class="field-label">Company</label>
+        <input class="field-input" id="f-company" value="${escHtml(text)}" type="text" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Contact</label>
+        <input class="field-input" id="f-contact" type="text" placeholder="Contact name" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Stage</label>
+        <select class="field-input" id="f-stage">
+          <option>Connected</option><option>Replied</option><option>Interested</option>
+          <option>Survey booked</option><option>Quoted</option><option>Won</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Value estimate (£)</label>
+        <input class="field-input" id="f-value" type="number" placeholder="0" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Notes</label>
+        <input class="field-input" id="f-notes" type="text" placeholder="What happened" />
+      </div>`;
+  } else if (currentType === 'activity') {
+    container.innerHTML = `
+      <div class="field-group">
+        <label class="field-label">LinkedIn connections sent</label>
+        <input class="field-input" id="f-li-sent" type="number" placeholder="0" value="0" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">LinkedIn accepted</label>
+        <input class="field-input" id="f-li-acc" type="number" placeholder="0" value="0" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Apollo emails sent</label>
+        <input class="field-input" id="f-ap-sent" type="number" placeholder="0" value="0" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Apollo replies</label>
+        <input class="field-input" id="f-ap-reply" type="number" placeholder="0" value="0" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Notes</label>
+        <input class="field-input" id="f-notes" type="text" value="${escHtml(text)}" placeholder="Any notes" />
+      </div>`;
+  }
+
+  document.getElementById('parsedSection').classList.add('visible');
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function saveEntry() {
+  const btn = document.querySelector('.btn-save');
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+
+  const now = new Date().toISOString();
+  const today = now.slice(0, 10);
+  let sheet, data, label;
+
+  try {
+    if (currentType === 'task') {
+      const title = document.getElementById('f-title').value.trim();
+      if (!title) { alert('Please enter a task title'); btn.textContent='Save to LBV'; btn.disabled=false; return; }
+      data = [{ id: 'voice_' + Date.now(), title, cat: document.getElementById('f-cat').value, pri: document.getElementById('f-pri').value, col: 'Today', due: today, notes: 'Added via voice', done: false, created: now }];
+      sheet = 'Tasks';
+      label = title;
+    } else if (currentType === 'prospect') {
+      const name = document.getElementById('f-name').value.trim();
+      data = [{ id: 'voice_' + Date.now(), name, company: document.getElementById('f-company').value, role: document.getElementById('f-role').value, channel: document.getElementById('f-ch').value, status: 'connected', notes: document.getElementById('f-notes').value, created: now }];
+      sheet = 'Prospects';
+      label = name + ' at ' + document.getElementById('f-company').value;
+    } else if (currentType === 'pipeline') {
+      const company = document.getElementById('f-company').value.trim();
+      data = [{ id: 'voice_' + Date.now(), company, contact: document.getElementById('f-contact').value, stage: document.getElementById('f-stage').value, value: document.getElementById('f-value').value || 0, notes: document.getElementById('f-notes').value, source: 'Voice', created: now }];
+      sheet = 'Pipeline';
+      label = company + ' - ' + document.getElementById('f-stage').value;
+    } else if (currentType === 'activity') {
+      data = [{ date: today, li_sent: document.getElementById('f-li-sent').value || 0, li_accept: document.getElementById('f-li-acc').value || 0, li_reply: '0', ap_sent: document.getElementById('f-ap-sent').value || 0, ap_open: '0', ap_reply: document.getElementById('f-ap-reply').value || 0, notes: document.getElementById('f-notes').value }];
+      sheet = 'Activity';
+      label = 'Activity logged for today';
+    }
+
+    await fetch(GAS, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'write', sheet, data }),
+      headers: { 'Content-Type': 'text/plain' }
+    });
+
+    // Add to recent
+    recentItems.unshift({ type: currentType, label, time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) });
+    if (recentItems.length > 5) recentItems.pop();
+    renderRecent();
+
+    showToast('Saved to LBV Command');
+    clearAll();
+
+  } catch(e) {
+    alert('Save failed. Check your connection.');
+  }
+
+  btn.textContent = 'Save to LBV';
+  btn.disabled = false;
+}
+
+function renderRecent() {
+  const list = document.getElementById('recentList');
+  if (!recentItems.length) { list.innerHTML = '<div style="font-size:13px;color:var(--mut);text-align:center;padding:20px 0;">Nothing added yet today</div>'; return; }
+  list.innerHTML = recentItems.map(item => `
+    <div class="recent-item">
+      <div class="recent-dot ${item.type}"></div>
+      <div class="recent-text">${item.label}</div>
+      <div class="recent-time">${item.time}</div>
+    </div>`).join('');
+}
+
+function clearAll() {
+  document.getElementById('transcriptCard').classList.remove('visible');
+  document.getElementById('parsedSection').classList.remove('visible');
+  document.getElementById('transcriptText').value = '';
+  document.getElementById('quickText').value = '';
+  document.getElementById('voiceStatus').textContent = 'Hold the button and speak clearly';
+  document.getElementById('voiceStatus').className = 'voice-status';
+  document.getElementById('fieldsContainer').innerHTML = '';
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
