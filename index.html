@@ -511,11 +511,19 @@ function saveDismissed(){
 
 async function learnEmail(e){
   var domain=e.senderEmail?e.senderEmail.split('@')[1]:'';
-  var entry={id:'learn_'+Date.now(),domain:domain,senderEmail:e.senderEmail||'',subject:e.subject||'',learned:new Date().toISOString()};
+  var entry={
+    id:'learn_'+Date.now(),
+    domain:domain,
+    senderEmail:e.senderEmail||'',
+    senderName:e.sender||'',
+    subject:e.subject||'',
+    summary:(e.summary||'').slice(0,150),
+    learned:new Date().toISOString()
+  };
   try{
     await fetch(GAS,{method:'POST',body:JSON.stringify({action:'write',sheet:'Learned',data:[entry]}),headers:{'Content-Type':'text/plain'}});
     dismissEmail(e.id);
-    toast('Learned. '+(domain||e.senderEmail)+' will be info only from now on.');
+    toast('Learned. The inbox will recognise this pattern going forward.');
   }catch(err){toast('Could not save. Try again.');}
 }
 function dismissEmail(id){
