@@ -561,7 +561,6 @@ async function pollInbox(){
   startPollCountdown();
 
   try{
-    // Step 1: Get filtered emails from GAS
     var gasResp=await fetch(GAS,{
       method:'POST',
       body:JSON.stringify({action:'getEmails'}),
@@ -579,71 +578,20 @@ async function pollInbox(){
 
     if(gasData.error){throw new Error(gasData.error);}
 
-    var emails=gasData.emails||[];
-    if(!emails.length){
-      setPollStatus('ok','No new actionable emails');
-      if(btn){btn.textContent='↻ Poll now';btn.disabled=false;}
-      return;
-    }
-
-    // Step 2: AI triage client-side on filtered emails only (max 8)
-    var toTriage=emails.slice(0,8);
-    var emailSummary=toTriage.map(function(e){
-      return 'From: '+(e.from&&e.from.emailAddress?e.from.emailAddress.name+' <'+e.from.emailAddress.address+'>':'Unknown')+
-        '\nSubject: '+e.subject+
-        '\nPreview: '+(e.bodyPreview||'').slice(0,100);
-    }).join('\n---\n');
-
-    var triageResp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{"Content-Type":"application/json","x-api-key":"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","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',
-        max_tokens:1000,
-        system:'Triage emails for Sean at LED By Vision. Return ONLY a JSON array. Each object: {id,subject,sender,senderEmail,received,summary,isRead,isProspect,urgency,syncedAt}. urgency: hot=action today, warm=action this week, info=FYI. id=use index 1,2,3 etc. Return ONLY valid JSON array.',
-        messages:[{role:'user',content:'Triage:\n\n'+emailSummary}]
-      })
-    });
-
-    var triageData=await triageResp.json();
-    var raw='';
-    if(triageData.content)triageData.content.forEach(function(b){if(b.type==='text')raw+=b.text;});
-
-    var items=[];
-    try{
-      var match=raw.match(/\[[\s\S]*\]/);
-      if(match)items=JSON.parse(match[0]);
-    }catch(e){}
-
-    // Enrich with real email data
-    var now=new Date().toISOString();
-    items=items.map(function(item,i){
-      var orig=toTriage[i]||{};
-      return {
-        id:orig.id||('email_'+i),
-        subject:orig.subject||item.subject||'',
-        sender:item.sender||'',
-        senderEmail:orig.from&&orig.from.emailAddress?orig.from.emailAddress.address:item.senderEmail||'',
-        received:orig.receivedDateTime||item.received||'',
-        summary:item.summary||'',
-        isRead:orig.isRead||false,
-        isProspect:item.isProspect||false,
-        urgency:item.urgency||'info',
-        syncedAt:now
-      };
-    });
-
+    var items=gasData.items||[];
     if(items.length){
       inbox=items;
       try{await gasWrite('Inbox',items);}catch(e){}
       renderInbox();
       updateInboxBadge();
+    } else {
+      setPollStatus('ok','No new actionable emails');
     }
 
-    var now2=new Date();
-    setPollStatus('ok','Last polled '+now2.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
+    var now=new Date();
+    setPollStatus('ok','Last polled '+now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
     var ibsynced=document.getElementById('ibsynced');
-    if(ibsynced)ibsynced.textContent='Auto-polls every 30 min · Last: '+now2.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    if(ibsynced)ibsynced.textContent='Auto-polls every 30 min · Last: '+now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 
   }catch(e){
     setPollStatus('err','Poll failed, will retry');
