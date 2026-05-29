@@ -509,6 +509,15 @@ function saveDismissed(){
   try{localStorage.setItem(DISMISSED_KEY,JSON.stringify(inboxDismissed));}catch(e){}
 }
 
+async function learnEmail(e){
+  var domain=e.senderEmail?e.senderEmail.split('@')[1]:'';
+  var entry={id:'learn_'+Date.now(),domain:domain,senderEmail:e.senderEmail||'',subject:e.subject||'',learned:new Date().toISOString()};
+  try{
+    await fetch(GAS,{method:'POST',body:JSON.stringify({action:'write',sheet:'Learned',data:[entry]}),headers:{'Content-Type':'text/plain'}});
+    dismissEmail(e.id);
+    toast('Learned. '+(domain||e.senderEmail)+' will be info only from now on.');
+  }catch(err){toast('Could not save. Try again.');}
+}
 function dismissEmail(id){
   if(!inboxDismissed.includes(id))inboxDismissed.push(id);
   saveDismissed();
@@ -1186,6 +1195,8 @@ function renderInbox(){
       // DISMISS BUTTON
       var eid=e.id;
       acts.appendChild(mkb('✓ Done',function(){dismissEmail(eid);}));
+      // LEARN BUTTON
+      acts.appendChild(mkb('🚫 Learn',function(){learnEmail(e);}));
       exp.appendChild(body);exp.appendChild(acts);
       function toggle(){
         if(exp.style.display==='none'){exp.style.display='block';arr.textContent='▲';}
