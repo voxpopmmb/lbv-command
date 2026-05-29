@@ -286,7 +286,7 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fnt);font-size:14px
     <div class="pg" id="pg-pipeline">
       <div class="ph"><div><div class="ptitle">Pipeline</div></div><div style="display:flex;gap:8px"><button class="btn" id="plsyncbtn" onclick="syncPipelineFromApollo()">↻ Sync Apollo</button><button class="btn pri" onclick="openPipeModal()">+ Log entry</button></div></div>
       <div class="sg">
-        <div class="sc"><div class="slbl">Total replies</div><div class="sval" id="pl-tot">0</div></div>
+        <div class="sc"><div class="slbl">Total contacts</div><div class="sval" id="pl-tot">0</div></div>
         <div class="sc"><div class="slbl">Surveys booked</div><div class="sval" id="pl-sv" style="color:var(--amb)">0</div></div>
         <div class="sc"><div class="slbl">Surveys done</div><div class="sval" id="pl-sd" style="color:var(--acc)">0</div></div>
         <div class="sc"><div class="slbl">Orders won</div><div class="sval" id="pl-ow" style="color:var(--grn)">0</div></div>
@@ -1051,6 +1051,13 @@ function updateApolloStats(seqs){
 }
 
 // PIPELINE
+function fmtPhone(p){
+  if(!p)return p;
+  var s=String(p).replace(/\s+/g,'');
+  if(s.startsWith('44'))return '0'+s.slice(2);
+  if(s.startsWith('+44'))return '0'+s.slice(3);
+  return s;
+}
 function renderPipeline(){
   var sv=pipeline.filter(function(e){return ['Survey booked','Survey done','Quoted','Order won'].indexOf(e.stage)>=0}).length;
   var sd=pipeline.filter(function(e){return ['Survey done','Quoted','Order won'].indexOf(e.stage)>=0}).length;
@@ -1080,7 +1087,7 @@ function renderPipeline(){
     html+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
     if(e.email) html+='<a href="mailto:'+e.email+'" style="font-size:11px;color:var(--acc);text-decoration:none;background:rgba(46,204,113,0.08);padding:3px 8px;border-radius:4px">✉ Email</a>';
     if(e.linkedin) html+='<a href="'+e.linkedin+'" target="_blank" style="font-size:11px;color:#0a66c2;text-decoration:none;background:rgba(10,102,194,0.1);padding:3px 8px;border-radius:4px">in LinkedIn</a>';
-    if(e.phone) html+='<a href="tel:'+e.phone+'" style="font-size:11px;color:var(--txt);text-decoration:none;background:var(--sur);padding:3px 8px;border-radius:4px;border:1px solid var(--bdr)">📞 '+e.phone+'</a>';
+    if(e.phone) html+='<a href="tel:'+e.phone+'" style="font-size:11px;color:var(--txt);text-decoration:none;background:var(--sur);padding:3px 8px;border-radius:4px;border:1px solid var(--bdr)">📞 '+fmtPhone(e.phone)+'</a>';
     if(e.website) html+='<a href="'+e.website+'" target="_blank" style="font-size:11px;color:var(--mut);text-decoration:none">🌐 Website</a>';
     html+='</div>';
     // Row 3: Stage, step, last activity, days since
