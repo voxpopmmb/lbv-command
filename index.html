@@ -284,7 +284,7 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fnt);font-size:14px
     </div>
 
     <div class="pg" id="pg-pipeline">
-      <div class="ph"><div><div class="ptitle">Pipeline</div></div><button class="btn pri" onclick="openPipeModal()">+ Log entry</button></div>
+      <div class="ph"><div><div class="ptitle">Pipeline</div></div><div style="display:flex;gap:8px"><button class="btn" id="plsyncbtn" onclick="syncPipelineFromApollo()">↻ Sync Apollo</button><button class="btn pri" onclick="openPipeModal()">+ Log entry</button></div></div>
       <div class="sg">
         <div class="sc"><div class="slbl">Total replies</div><div class="sval" id="pl-tot">0</div></div>
         <div class="sc"><div class="slbl">Surveys booked</div><div class="sval" id="pl-sv" style="color:var(--amb)">0</div></div>
@@ -1055,14 +1055,28 @@ function renderPipeline(){
   var sv=pipeline.filter(function(e){return ['Survey booked','Survey done','Quoted','Order won'].indexOf(e.stage)>=0}).length;
   var sd=pipeline.filter(function(e){return ['Survey done','Quoted','Order won'].indexOf(e.stage)>=0}).length;
   var ow=pipeline.filter(function(e){return e.stage==='Order won'}).length;
+  var totalVal=pipeline.reduce(function(a,e){return a+(parseFloat(e.value)||0)},0);
   document.getElementById('pl-tot').textContent=pipeline.length;
   document.getElementById('pl-sv').textContent=sv;
   document.getElementById('pl-sd').textContent=sd;
   document.getElementById('pl-ow').textContent=ow;
   document.getElementById('b-pipeline').textContent=pipeline.length;
+  var stages=['Active','Replied','Interested','Survey booked','Survey done','Quoted','Order won','Bounced','Finished'];
+  var stageColors={'Active':'var(--mut)','Replied':'var(--blu)','Interested':'var(--amb)','Survey booked':'var(--amb)','Survey done':'var(--grn2)','Quoted':'var(--grn)','Order won':'var(--acc)','Bounced':'var(--red)','Finished':'var(--mut)'};
   var html='';
   pipeline.forEach(function(e){
-    html+='<div class="plr"><div style="flex:1"><div class="pname">'+e.company+' <span style="font-size:11px;color:var(--mut);font-weight:400">· '+(e.contact||'')+'</span></div><div class="pmeta">'+e.date+' · Seg '+(e.seg||'')+' · '+(e.source||'')+'</div><div class="sigs"><span class="sig sr">'+e.stage+'</span></div>'+(e.notes?'<div style="font-size:11px;color:var(--mut);margin-top:3px">'+e.notes+'</div>':'')+'</div><button class="tb del" onclick="delPipe(\''+e.id+'\')">×</button></div>';
+    var sc=stageColors[e.stage]||'var(--mut)';
+    var opts=stages.map(function(s){return '<option value="'+s+'"'+(s===e.stage?' selected':'')+'>'+s+'</option>';}).join('');
+    html+='<div class="plr" style="flex-direction:column;align-items:stretch;gap:8px">';
+    html+='<div style="display:flex;align-items:center;gap:8px">';
+    html+='<div style="flex:1"><div class="pname">'+e.company+' <span style="font-size:11px;color:var(--mut);font-weight:400">· '+(e.contact||'')+'</span></div>';
+    html+='<div class="pmeta">'+(e.role||'')+(e.notes?' · '+e.notes:'')+'</div></div>';
+    html+='<button class="tb del" onclick="delPipe(\''+e.id+'\')">×</button></div>';
+    html+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+    html+='<select style="background:var(--sur);border:1px solid var(--bdr);border-radius:6px;padding:4px 8px;color:'+sc+';font-size:12px;cursor:pointer" onchange="updatePipeStage(\''+e.id+'\',this.value)">'+opts+'</select>';
+    html+='<div style="display:flex;align-items:center;gap:4px"><span style="font-size:11px;color:var(--mut)">£</span><input type="number" placeholder="Value" value="'+(e.value||'')+'" style="width:90px;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;padding:4px 8px;color:var(--txt);font-size:12px" onchange="updatePipeValue(\''+e.id+'\',this.value)" onblur="updatePipeValue(\''+e.id+'\',this.value)"></div>';
+    html+='<span style="font-size:11px;color:var(--mut)">'+(e.source||'')+'</span>';
+    html+='</div></div>';
   });
   document.getElementById('piperows').innerHTML=html||'<div class="empty">No entries yet.</div>';
 }
@@ -1081,6 +1095,35 @@ async function savePipe(){
   renderPipeline();
   await gasWrite('Pipeline',pipeline);
   toast('Pipeline entry saved');
+}
+async function updatePipeStage(id, stage){
+  var e=pipeline.find(function(p){return p.id===id;});
+  if(!e)return;
+  e.stage=stage;
+  renderPipeline();
+  await gasWrite('Pipeline',pipeline);
+  toast('Stage updated');
+}
+async function updatePipeValue(id, value){
+  var e=pipeline.find(function(p){return p.id===id;});
+  if(!e)return;
+  e.value=parseFloat(value)||0;
+  await gasWrite('Pipeline',pipeline);
+}
+async function syncPipelineFromApollo(){
+  var btn=document.getElementById('plsyncbtn');
+  if(btn){btn.textContent='Syncing...';btn.disabled=true;}
+  try{
+    var r=await fetch(GAS,{method:'POST',body:JSON.stringify({action:'syncPipeline'}),headers:{'Content-Type':'text/plain'}});
+    var data=await r.json();
+    if(data.ok){
+      var res=await gasRead('Pipeline');
+      pipeline=res;
+      renderPipeline();
+      toast('Synced '+data.synced+' contacts from Apollo');
+    }
+  }catch(e){toast('Sync failed');}
+  if(btn){btn.textContent='↻ Sync Apollo';btn.disabled=false;}
 }
 async function delPipe(id){
   if(!confirm('Remove this entry?'))return;
