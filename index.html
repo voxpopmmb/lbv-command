@@ -561,7 +561,6 @@ async function pollInbox(){
   startPollCountdown();
 
   try{
-    // Step 1: Fetch emails from GAS which calls Microsoft Graph API
     var gasResp=await fetch(GAS,{
       method:'POST',
       body:JSON.stringify({action:'getEmails'}),
@@ -569,7 +568,6 @@ async function pollInbox(){
     });
     var gasData=await gasResp.json();
 
-    // If Microsoft not yet authorised, show connect button
     if(gasData.needsAuth){
       var iblist=document.getElementById('iblist');
       if(iblist)iblist.innerHTML='<div style="padding:24px;text-align:center;"><div style="font-size:13px;color:var(--mut);margin-bottom:16px;">Connect your Microsoft 365 inbox to enable email triage.</div><a href="'+gasData.authUrl+'" target="_blank" style="background:var(--acc);color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;">Connect Inbox</a><div style="font-size:11px;color:var(--mut);margin-top:12px;">After connecting, click Poll now to load your emails.</div></div>';
@@ -580,42 +578,7 @@ async function pollInbox(){
 
     if(gasData.error){throw new Error(gasData.error);}
 
-    var emails=gasData.emails||[];
-    if(!emails.length){
-      setPollStatus('ok','Inbox empty or no new mail');
-      if(btn){btn.textContent='↻ Poll now';btn.disabled=false;}
-      return;
-    }
-
-    // Step 2: Use Anthropic API to triage the raw emails
-    var emailSummary=emails.map(function(e){
-      return 'From: '+(e.from&&e.from.emailAddress?e.from.emailAddress.name+' <'+e.from.emailAddress.address+'>':'Unknown')+
-        '\nSubject: '+e.subject+
-        '\nReceived: '+e.receivedDateTime+
-        '\nPreview: '+e.bodyPreview;
-    }).join('\n---\n');
-
-    var triageResp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{"Content-Type":"application/json","x-api-key":"sk-ant-api03-CXkh1DNggEP1kcz9ywNAMseu8djUgwswt9geNqIIRvxY3wF2nfeAxDbcSh4BM44YJzeYyMGEJCh-FOBGyWOLPg-t57UBWAA","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:2000,
-        system:'You are an inbox triage assistant for Sean Costello at LED By Vision. Analyse emails and return ONLY a JSON array. Exclude: marketing, newsletters, automated notifications from Salesforce/Apollo/Surfe. Include: client replies, prospect responses, supplier chasers, payment issues, meeting requests. Each object: {id (unique string), subject, sender (Name - Company), senderEmail, received (ISO), summary (one sentence action needed), isRead (bool), isProspect (bool), urgency (hot/warm/info), syncedAt (current ISO)}. hot=needs action today, warm=needs action this week, info=FYI only. Return ONLY valid JSON array.',
-        messages:[{role:'user',content:'Triage these emails:\n\n'+emailSummary}]
-      })
-    });
-
-    var triageData=await triageResp.json();
-    var raw='';
-    if(triageData.content)triageData.content.forEach(function(b){if(b.type==='text')raw+=b.text;});
-
-    var items=[];
-    try{
-      var match=raw.match(/\[[\s\S]*\]/);
-      if(match)items=JSON.parse(match[0]);
-    }catch(e){}
-
+    var items=gasData.items||[];
     if(items.length){
       inbox=items;
       try{await gasWrite('Inbox',items);}catch(e){}
