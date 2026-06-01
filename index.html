@@ -230,17 +230,15 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fnt);font-size:14px
     <div class="pg" id="pg-intel">
       <div class="ph">
         <div><div class="ptitle">Follow-up intel</div><div class="psub">Who needs attention today</div></div>
-        <div class="bg"><button class="btn" onclick="doIntel()" id="intelbtn">✦ Analyse now</button><button class="btn pri" onclick="openProspModal()">+ Log prospect</button></div>
+        <div class="bg"><button class="btn pri" onclick="runIntelBrief()" id="intelbtn">⚡ Run brief</button></div>
       </div>
-      <div class="sec"><div class="stitle">Priority follow-ups</div><div id="fulist"><div class="empty">Click Analyse now to generate recommendations.</div></div></div>
-      <div class="sec">
-        <div class="stitle">All prospects</div>
-        <div class="fr">
-          <button class="fb on" onclick="filtProsp('all',this)">All</button>
-          <button class="fb" onclick="filtProsp('LinkedIn',this)">LinkedIn</button>
-          <button class="fb" onclick="filtProsp('Apollo',this)">Apollo</button>
+      <div class="sec" id="intel-brief">
+        <div class="empty" style="padding:32px;text-align:center">
+          <div style="font-size:28px;margin-bottom:12px">⚡</div>
+          <div style="font-size:14px;color:var(--txt);font-weight:600;margin-bottom:8px">Your daily intelligence brief</div>
+          <div style="font-size:12px;color:var(--mut);margin-bottom:20px">Surfaces who to contact today based on Apollo signals, pipeline stage and LinkedIn activity.</div>
+          <button class="btn pri" onclick="runIntelBrief()">Run brief now</button>
         </div>
-        <div id="prosplist"><div class="empty">No prospects logged yet.</div></div>
       </div>
     </div>
 
@@ -906,20 +904,23 @@ function filtProsp(f,btn){
   renderProspects();
 }
 function buildAlerts(){
-  var now=new Date();
-  var hot=[];
-  prospects.forEach(function(p){
-    var d=p.date?Math.floor((now-new Date(p.date))/86400000):0;
-    if((p.status==='replied'||p.status==='interested')&&d>=1)hot.push(p);
+  var hotCount=0;
+  // Count replied/interested in manual pipeline
+  manualProspects.forEach(function(p){
+    if(p.stage==='Replied'||p.stage==='Interested'||p.stage==='Survey booked'||p.stage==='Quoted')hotCount++;
   });
-  document.getElementById('b-intel').textContent=hot.length;
-  document.getElementById('sv-fu').textContent=hot.length;
-  var area=document.getElementById('alertarea');
-  if(hot.length>0){
-    area.innerHTML='<div class="al"><div class="al-ic">🔥</div><div class="al-tx"><strong>'+hot.length+' prospect'+(hot.length>1?'s':'')+' replied and need'+(hot.length===1?'s':'')+' your response.</strong></div><div class="al-ac" onclick="nav(\'intel\')">View →</div></div>';
-  }else{
-    area.innerHTML='';
-  }
+  // Count quoted in Apollo pipeline over 7 days
+  var now=new Date();
+  pipeline.forEach(function(p){
+    if(p.stage==='Quoted'){
+      var days=Math.floor((now-new Date(p.created||now))/86400000);
+      if(days>=7)hotCount++;
+    }
+  });
+  var badge=document.getElementById('b-intel');
+  if(badge)badge.textContent=hotCount||'';
+  var fu=document.getElementById('sv-fu');
+  if(fu)fu.textContent=hotCount||'';
 }
 function openProspModal(){
   editProspId=null;
@@ -963,11 +964,172 @@ async function delProsp(id){
   toast('Removed');
 }
 
-// INTEL AI
-async function doIntel(){
+// FOLLOW-UP INTEL
+async function runIntelBrief(){
   var btn=document.getElementById('intelbtn');
-  btn.textContent='Analysing...';btn.disabled=true;
-  if(!prospects.length){document.getElementById('fulist').innerHTML='<div class="empty">No prospects logged yet.</div>';btn.textContent='✦ Analyse now';btn.disabled=false;return;}
+  var brief=document.getElementById('intel-brief');
+  if(btn){btn.textContent='Analysing...';btn.disabled=true;}
+  brief.innerHTML='<div style="padding:32px;text-align:center;color:var(--mut);font-size:13px">Pulling signals from Apollo and pipeline...</div>';
+
+  var signals=[];
+  var today=new Date();
+
+  try{
+    // 1. MANUAL PIPELINE: Replied stage with no recent note
+    manualProspects.forEach(function(p){
+      if(p.stage==='Replied'||p.stage==='Interested'){
+        signals.push({
+          priority:'hot',
+          icon:'🔥',
+          action:'Follow up required',
+          name:p.contact||p.company,
+          company:p.company,
+          detail:'Marked as '+p.stage+' in your pipeline. No confirmed next step.',
+          cta:'Log to pipeline',
+          ctaFn:"nav('pipeline');setPipeTab('manual',document.getElementById('pltab-manual'))"
+        });
+      }
+      if(p.stage==='Survey booked'){
+        signals.push({
+          priority:'hot',
+          icon:'📅',
+          action:'Survey prep needed',
+          name:p.contact||p.company,
+          company:p.company,
+          detail:'Survey booked. Confirm date, prepare site audit checklist.',
+          cta:'View pipeline',
+          ctaFn:"nav('pipeline');setPipeTab('manual',document.getElementById('pltab-manual'))"
+        });
+      }
+    });
+
+    // 2. APOLLO: Pull sequence data for engagement signals
+    var apolloResp=await fetch(GAS,{
+      method:'POST',
+      body:JSON.stringify({action:'apollo'}),
+      headers:{'Content-Type':'text/plain'}
+    });
+    var apolloData=await apolloResp.json();
+    var seqs=apolloData.emailer_campaigns||[];
+
+    seqs.forEach(function(seq){
+      var delivered=seq.unique_delivered||0;
+      var replied=seq.unique_replied||0;
+      var active=seq.num_active_in_sequence||0;
+      var name=seq.name||'Sequence';
+
+      // Replies in sequence not yet in pipeline
+      if(replied>0){
+        signals.push({
+          priority:'hot',
+          icon:'💬',
+          action:'Reply received in '+name,
+          name:name,
+          company:'Apollo sequence',
+          detail:replied+' contact'+(replied>1?'s have':' has')+' replied to your emails. Check Outlook and log to pipeline.',
+          cta:'Check inbox',
+          ctaFn:"nav('inbox')"
+        });
+      }
+
+      // Contacts sitting in sequence over 7 days with no engagement
+      if(active>0 && delivered>0 && replied===0){
+        var openRate=seq.unique_opened?Math.round((seq.unique_opened/delivered)*100):0;
+        if(openRate>0&&openRate<5){
+          signals.push({
+            priority:'warm',
+            icon:'📧',
+            action:'Low engagement in '+name,
+            name:name,
+            company:'Apollo sequence',
+            detail:delivered+' emails sent, '+openRate+'% open rate. Consider refreshing subject lines.',
+            cta:'View sequence',
+            ctaFn:"nav('outreach')"
+          });
+        }
+      }
+    });
+
+    // 3. LINKEDIN: Acceptances logged in activity tracker with no follow up
+    var recentAccepts=0;
+    var cutoff=new Date(today.getTime()-7*24*60*60*1000);
+    actLog.forEach(function(a){
+      var d=new Date(a.date||a.li_sent);
+      var accepts=parseInt(a.li_accept||a.LI_ACCEPT||0);
+      if(!isNaN(d)&&d>=cutoff&&accepts>0)recentAccepts+=accepts;
+    });
+    if(recentAccepts>0){
+      signals.push({
+        priority:'warm',
+        icon:'🤝',
+        action:'LinkedIn acceptances need follow-up message',
+        name:recentAccepts+' new connection'+(recentAccepts>1?'s':''),
+        company:'LinkedIn',
+        detail:recentAccepts+' connection'+(recentAccepts>1?'s':'')+' accepted in the last 7 days. Send a warm follow-up message to each.',
+        cta:'View activity',
+        ctaFn:"nav('tracker')"
+      });
+    }
+
+    // 4. PIPELINE: Quoted stage with no movement
+    pipeline.forEach(function(p){
+      if(p.stage==='Quoted'){
+        var created=new Date(p.created||p.lastActivity||today);
+        var days=Math.floor((today-created)/86400000);
+        if(days>=7){
+          signals.push({
+            priority:'hot',
+            icon:'💰',
+            action:'Quote chaser due',
+            name:p.contact||p.company,
+            company:p.company,
+            detail:'Quoted '+days+' days ago with no update. Chase for decision.',
+            cta:'View pipeline',
+            ctaFn:"nav('pipeline')"
+          });
+        }
+      }
+    });
+
+    // Sort: hot first then warm
+    signals.sort(function(a,b){return a.priority==='hot'&&b.priority!=='hot'?-1:1;});
+
+    // Render
+    if(!signals.length){
+      brief.innerHTML='<div style="padding:40px;text-align:center"><div style="font-size:28px;margin-bottom:12px">✅</div><div style="font-size:14px;color:var(--txt);font-weight:600">All clear</div><div style="font-size:12px;color:var(--mut);margin-top:8px">No urgent follow-ups right now. Check back tomorrow morning.</div></div>';
+    } else {
+      var html='<div style="padding:0 0 8px;font-size:11px;color:var(--mut);font-weight:700;letter-spacing:0.06em;text-transform:uppercase">'+signals.length+' action'+(signals.length>1?'s':'')+' today</div>';
+      signals.forEach(function(s){
+        var col=s.priority==='hot'?'var(--red)':'var(--amb)';
+        html+='<div style="background:var(--sur);border:1px solid var(--bdr);border-left:3px solid '+col+';border-radius:10px;padding:16px;margin-bottom:12px">';
+        html+='<div style="display:flex;align-items:flex-start;gap:12px">';
+        html+='<div style="font-size:22px;flex-shrink:0">'+s.icon+'</div>';
+        html+='<div style="flex:1">';
+        html+='<div style="font-size:11px;font-weight:700;color:'+col+';text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">'+s.action+'</div>';
+        html+='<div style="font-size:14px;font-weight:600;color:var(--txt);margin-bottom:4px">'+s.name+(s.company&&s.company!==s.name?' <span style="font-weight:400;color:var(--mut)">· '+s.company+'</span>':'')+'</div>';
+        html+='<div style="font-size:12px;color:var(--mut);margin-bottom:10px">'+s.detail+'</div>';
+        html+='<button onclick="'+s.ctaFn+'" style="background:var(--grn);border:none;border-radius:6px;padding:6px 14px;color:#fff;font-size:12px;font-weight:600;cursor:pointer">'+s.cta+' →</button>';
+        html+='</div></div></div>';
+      });
+      brief.innerHTML=html;
+    }
+
+    // Update badge
+    var hotCount=signals.filter(function(s){return s.priority==='hot';}).length;
+    var badge=document.getElementById('b-intel');
+    if(badge)badge.textContent=hotCount||'';
+    var fu=document.getElementById('sv-fu');
+    if(fu)fu.textContent=signals.length;
+
+  }catch(e){
+    brief.innerHTML='<div class="empty">Could not load signals. Check your connection and try again.</div>';
+  }
+
+  if(btn){btn.textContent='⚡ Run brief';btn.disabled=false;}
+}
+
+// Keep old doIntel for backward compat
+function doIntel(){ runIntelBrief(); }
   var now=new Date();
   var sum=prospects.map(function(p){var d=p.date?Math.floor((now-new Date(p.date))/86400000):0;return p.name+' at '+p.company+' ('+p.title+'), '+p.sector+', seg '+(p.segment||'none')+', '+p.channel+', status: '+p.status+', '+d+' days ago, notes: '+(p.notes||'none');}).join('\n');
   try{
