@@ -284,14 +284,19 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fnt);font-size:14px
     </div>
 
     <div class="pg" id="pg-pipeline">
-      <div class="ph"><div><div class="ptitle">Pipeline</div></div><div style="display:flex;gap:8px"><button class="btn" id="plsyncbtn" onclick="syncPipelineFromApollo()">↻ Sync Apollo</button><button class="btn pri" onclick="openPipeModal()">+ Log entry</button></div></div>
+      <div class="ph"><div><div class="ptitle">Pipeline</div></div><div style="display:flex;gap:8px"><button class="btn" id="plsyncbtn" onclick="syncPipelineFromApollo()">↻ Sync Apollo</button><button class="btn pri" onclick="openPipeModal()">+ Log prospect</button></div></div>
       <div class="sg">
-        <div class="sc"><div class="slbl">Total contacts</div><div class="sval" id="pl-tot">0</div></div>
+        <div class="sc"><div class="slbl">Apollo contacts</div><div class="sval" id="pl-tot">0</div></div>
+        <div class="sc"><div class="slbl">Manual prospects</div><div class="sval" id="pl-man">0</div></div>
         <div class="sc"><div class="slbl">Surveys booked</div><div class="sval" id="pl-sv" style="color:var(--amb)">0</div></div>
-        <div class="sc"><div class="slbl">Surveys done</div><div class="sval" id="pl-sd" style="color:var(--acc)">0</div></div>
         <div class="sc"><div class="slbl">Orders won</div><div class="sval" id="pl-ow" style="color:var(--grn)">0</div></div>
       </div>
-      <div class="sec"><div class="stitle">All entries</div><div id="piperows"><div class="empty">No entries yet.</div></div></div>
+      <div class="fr" style="margin-bottom:0">
+        <button class="fb on" id="pltab-apollo" onclick="setPipeTab('apollo',this)">Apollo sequences</button>
+        <button class="fb" id="pltab-manual" onclick="setPipeTab('manual',this)">Manual prospects</button>
+      </div>
+      <div class="sec" id="pl-apollo-section"><div id="piperows"><div class="empty">No entries yet.</div></div></div>
+      <div class="sec" id="pl-manual-section" style="display:none"><div id="manualrows"><div class="empty">No manual prospects yet. Add one with + Log prospect.</div></div></div>
     </div>
 
     <!-- INBOX PAGE -->
@@ -409,7 +414,8 @@ const ROUTINE = [
 const POLL_MINS = 30;
 const DISMISSED_KEY = 'lbv_inbox_dismissed';
 
-let tasks=[], prospects=[], actLog=[], pipeline=[], inbox=[];
+let tasks=[], prospects=[], actLog=[], pipeline=[], inbox=[], manualProspects=[];
+let pipeTab='apollo';
 let taskFilt='all', prospFilt='all', inboxFilt='all', editTaskId=null, editProspId=null;
 let inboxDismissed=[], showDismissed=false;
 let pollCountdown=POLL_MINS*60, pollCdTimer=null, pollTimer=null;
@@ -479,12 +485,13 @@ async function loadAll(){
   setTimeout(async function(){
     setSync('sync');
     try{
-      var res=await Promise.all([gasRead('Tasks'),gasRead('Prospects'),gasRead('Activity'),gasRead('Pipeline')]);
-      var t=res[0],p=res[1],a=res[2],pl=res[3];
+      var res=await Promise.all([gasRead('Tasks'),gasRead('Prospects'),gasRead('Activity'),gasRead('Pipeline'),gasRead('ManualProspects')]);
+      var t=res[0],p=res[1],a=res[2],pl=res[3],mp=res[4];
       tasks=t.map(function(r){return Object.assign({},r,{done:r.done==='TRUE'||r.done===true})});
       prospects=p;
       actLog=a;
       pipeline=pl;
+      manualProspects=mp;
       if(!tasks.length)seedTasks();
       setSync('ok');
       renderAll();
@@ -644,7 +651,73 @@ function renderAll(){
   renderProspects();
   updateStats();
   renderPipeline();
+  renderManualProspects();
   buildAlerts();
+}
+
+function setPipeTab(tab,btn){
+  pipeTab=tab;
+  document.querySelectorAll('#pltab-apollo,#pltab-manual').forEach(function(b){b.classList.remove('on');});
+  if(btn)btn.classList.add('on');
+  var ap=document.getElementById('pl-apollo-section');
+  var mn=document.getElementById('pl-manual-section');
+  if(ap)ap.style.display=tab==='apollo'?'':'none';
+  if(mn)mn.style.display=tab==='manual'?'':'none';
+}
+
+function renderManualProspects(){
+  var el=document.getElementById('manualrows');
+  if(!el)return;
+  var manEl=document.getElementById('pl-man');
+  if(manEl)manEl.textContent=manualProspects.length;
+  if(!manualProspects.length){el.innerHTML='<div class="empty">No manual prospects yet. Click + Log prospect to add one.</div>';return;}
+  var stages=['Connected','Replied','Interested','Survey booked','Survey done','Quoted','Order won'];
+  var stageColors={'Connected':'var(--mut)','Replied':'var(--blu)','Interested':'var(--amb)','Survey booked':'var(--amb)','Survey done':'var(--grn2)','Quoted':'var(--grn)','Order won':'var(--acc)'};
+  var html='';
+  manualProspects.forEach(function(e){
+    var sc=stageColors[e.stage]||'var(--mut)';
+    var opts=stages.map(function(s){return '<option value="'+s+'"'+(s===e.stage?' selected':'')+'>'+s+'</option>';}).join('');
+    html+='<div class="plr" style="flex-direction:column;align-items:stretch;gap:10px;padding:14px 0">';
+    html+='<div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1">';
+    html+='<div class="pname">'+e.company+' <span style="font-size:11px;color:var(--mut);font-weight:400">· '+(e.contact||'')+'</span></div>';
+    html+='<div class="pmeta">'+(e.role||'')+'</div></div>';
+    html+='<button class="tb del" onclick="delManual(\''+e.id+'\')">×</button></div>';
+    html+='<div style="display:flex;gap:8px;flex-wrap:wrap">';
+    if(e.email)html+='<a href="mailto:'+e.email+'" style="font-size:11px;color:var(--acc);text-decoration:none;background:rgba(46,204,113,0.08);padding:3px 8px;border-radius:4px">✉ Email</a>';
+    if(e.linkedin)html+='<a href="'+e.linkedin+'" target="_blank" style="font-size:11px;color:#0a66c2;text-decoration:none;background:rgba(10,102,194,0.1);padding:3px 8px;border-radius:4px">in LinkedIn</a>';
+    html+='</div>';
+    html+='<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">';
+    html+='<select style="background:var(--sur);border:1px solid var(--bdr);border-radius:6px;padding:4px 8px;color:'+sc+';font-size:12px;cursor:pointer;font-weight:600" onchange="updateManualStage(\''+e.id+'\',this.value)">'+opts+'</select>';
+    html+='<div style="display:flex;align-items:center;gap:4px;margin-left:auto"><span style="font-size:11px;color:var(--mut)">£</span><input type="number" placeholder="Est. value" value="'+(e.value||'')+'" style="width:100px;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;padding:4px 8px;color:var(--txt);font-size:12px" onchange="updateManualValue(\''+e.id+'\',this.value)"></div>';
+    html+='</div>';
+    if(e.notes)html+='<div style="font-size:11px;color:var(--mut)">'+e.notes+'</div>';
+    html+='</div>';
+  });
+  el.innerHTML=html;
+}
+
+function updateManualStage(id,stage){
+  var e=manualProspects.find(function(p){return p.id===id;});
+  if(!e)return;
+  e.stage=stage;
+  renderManualProspects();
+  gasWrite('ManualProspects',manualProspects);
+  toast('Stage updated');
+}
+
+function updateManualValue(id,value){
+  var e=manualProspects.find(function(p){return p.id===id;});
+  if(!e)return;
+  e.value=parseFloat(value)||0;
+  gasWrite('ManualProspects',manualProspects);
+}
+
+function delManual(id){
+  if(!confirm('Delete this prospect?'))return;
+  manualProspects=manualProspects.filter(function(p){return p.id!==id;});
+  renderManualProspects();
+  fetch(GAS,{method:'POST',body:JSON.stringify({action:'delete',sheet:'ManualProspects',id:id}),headers:{'Content-Type':'text/plain'}});
+  toast('Deleted');
 }
 
 // ROUTINE
@@ -1095,12 +1168,26 @@ function closePipeModal(){document.getElementById('mbPipe').classList.remove('op
 async function savePipe(){
   var co=document.getElementById('pl-co').value.trim();
   if(!co){alert('Please enter a company name');return;}
-  var entry={id:uid(),date:new Date().toLocaleDateString('en-GB'),company:co,contact:document.getElementById('pl-ct').value,seg:document.getElementById('pl-sg').value,source:document.getElementById('pl-src').value,stage:document.getElementById('pl-stg').value,notes:document.getElementById('pl-nt').value};
-  pipeline.unshift(entry);
+  var entry={
+    id:uid(),
+    date:new Date().toLocaleDateString('en-GB'),
+    company:co,
+    contact:document.getElementById('pl-ct').value,
+    role:'',
+    email:'',
+    linkedin:'',
+    source:document.getElementById('pl-src').value,
+    stage:document.getElementById('pl-stg').value,
+    notes:document.getElementById('pl-nt').value,
+    value:0,
+    created:new Date().toISOString()
+  };
+  manualProspects.unshift(entry);
   closePipeModal();
-  renderPipeline();
-  await gasWrite('Pipeline',pipeline);
-  toast('Pipeline entry saved');
+  renderManualProspects();
+  setPipeTab('manual',document.getElementById('pltab-manual'));
+  gasWrite('ManualProspects',manualProspects);
+  toast('Prospect saved to Manual tab');
 }
 async function updatePipeNote(id, notes){
   var e=pipeline.find(function(p){return p.id===id;});
