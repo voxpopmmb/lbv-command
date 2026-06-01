@@ -437,16 +437,14 @@ async function gasRead(sheet){
   }catch(e){clearTimeout(tid);throw e;}
 }
 
-async function gasWrite(sheet,data){
+function gasWrite(sheet,data){
+  // Fire and forget - update UI immediately, GAS saves in background
   setSync('sync');
-  var ctrl=new AbortController();
-  var tid=setTimeout(function(){ctrl.abort()},15000);
-  try{
-    await fetch(GAS,{method:'POST',body:JSON.stringify({action:'write',sheet:sheet,data:data}),headers:{'Content-Type':'text/plain'},signal:ctrl.signal});
-    clearTimeout(tid);
-    setSync('ok');
-  }catch(e){clearTimeout(tid);setSync('err');}
   saveCache();
+  fetch(GAS,{method:'POST',body:JSON.stringify({action:'write',sheet:sheet,data:data}),headers:{'Content-Type':'text/plain'}})
+    .then(function(){setSync('ok');})
+    .catch(function(){setSync('err');});
+  return Promise.resolve({ok:true});
 }
 
 function saveCache(){
