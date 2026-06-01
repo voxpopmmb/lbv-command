@@ -211,10 +211,10 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fnt);font-size:14px
       <div id="alertarea"></div>
       <div id="suggarea"></div>
       <div class="sg">
-        <div class="sc"><div class="slbl">Tasks today</div><div class="sval" id="sv-tod">0</div><div class="ssub">scheduled</div></div>
-        <div class="sc"><div class="slbl">Completed</div><div class="sval" id="sv-don" style="color:var(--grn)">0</div><div class="ssub">today</div></div>
-        <div class="sc"><div class="slbl">High priority</div><div class="sval" id="sv-hi" style="color:var(--red)">0</div><div class="ssub">pending</div></div>
-        <div class="sc" onclick="nav('intel')"><div class="slbl">Follow-ups due</div><div class="sval" id="sv-fu" style="color:var(--amb)">0</div><div class="ssub">need attention ↗</div></div>
+        <div class="sc" onclick="nav('board')" style="cursor:pointer"><div class="slbl">Tasks today</div><div class="sval" id="sv-tod">0</div><div class="ssub">tap to view ↗</div></div>
+        <div class="sc" onclick="nav('board');setFilt('done',document.querySelector('.fb'))" style="cursor:pointer"><div class="slbl">Completed</div><div class="sval" id="sv-don" style="color:var(--grn)">0</div><div class="ssub">tap to view ↗</div></div>
+        <div class="sc" onclick="nav('board');setFilt('High',document.querySelector('.fb'))" style="cursor:pointer"><div class="slbl">High priority</div><div class="sval" id="sv-hi" style="color:var(--red)">0</div><div class="ssub">tap to view ↗</div></div>
+        <div class="sc" onclick="nav('intel')" style="cursor:pointer"><div class="slbl">Follow-ups due</div><div class="sval" id="sv-fu" style="color:var(--amb)">0</div><div class="ssub">need attention ↗</div></div>
       </div>
       <div class="fr">
         <button class="fb on" onclick="setFilt('all',this)">All</button>
@@ -270,10 +270,10 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fnt);font-size:14px
       </div>
       <div class="al" id="apfail" style="display:none"><div class="al-ic">⚠</div><div class="al-tx">Could not reach Apollo API. Showing cached data.</div></div>
       <div class="sg">
-        <div class="sc"><div class="slbl">Active contacts</div><div class="sval" id="od-act">—</div><div class="ssub">in sequences</div></div>
-        <div class="sc"><div class="slbl">Delivered</div><div class="sval" id="od-del">—</div><div class="ssub">emails sent</div></div>
-        <div class="sc"><div class="slbl">Replies</div><div class="sval" id="od-rep">—</div><div class="ssub">total</div></div>
-        <div class="sc"><div class="slbl">Reply rate</div><div class="sval" id="od-rr">—</div><div class="ssub">overall</div></div>
+        <div class="sc" onclick="document.getElementById('seqrows').scrollIntoView({behavior:'smooth'})" style="cursor:pointer"><div class="slbl">Active contacts</div><div class="sval" id="od-act">—</div><div class="ssub">in sequences ↓</div></div>
+        <div class="sc" onclick="document.getElementById('seqrows').scrollIntoView({behavior:'smooth'})" style="cursor:pointer"><div class="slbl">Delivered</div><div class="sval" id="od-del">—</div><div class="ssub">emails sent ↓</div></div>
+        <div class="sc" onclick="syncPipelineFromApollo()" style="cursor:pointer"><div class="slbl">Replies</div><div class="sval" id="od-rep">—</div><div class="ssub">tap to sync pipeline ↗</div></div>
+        <div class="sc" onclick="document.getElementById('segbars').scrollIntoView({behavior:'smooth'})" style="cursor:pointer"><div class="slbl">Reply rate</div><div class="sval" id="od-rr">—</div><div class="ssub">by segment ↓</div></div>
       </div>
       <div class="sec">
         <div class="stitle">Sequences</div>
