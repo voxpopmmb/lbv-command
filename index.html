@@ -1551,8 +1551,10 @@ document.getElementById('mbPipe').addEventListener('click',function(e){if(e.targ
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeTaskModal();closeProspModal();closePipeModal()}});
 
 // INIT
-document.getElementById('tdatefull').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-loadAll();
+window.addEventListener('load', function() {
+  document.getElementById('tdatefull').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  loadAll();
+});
 </script>
 </body>
 </html>
