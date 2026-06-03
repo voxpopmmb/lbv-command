@@ -1468,9 +1468,6 @@ function renderInbox(){
         document.getElementById('t-nts').value='From: '+(e.sender||'')+'. '+(e.summary||'').slice(0,120);
         document.getElementById('mbTask').classList.add('open');
         setTimeout(function(){document.getElementById('t-ttl').focus()},50);
-        // Auto-dismiss the email when task is created
-        dismissEmail(eid, false);
-        toast('Task created and email dismissed');
       }));
       acts.appendChild(mkb('Log to pipeline',function(){
         var parts=(e.sender||'').split(' - ');
