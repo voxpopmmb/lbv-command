@@ -480,6 +480,8 @@ function seedTasks(){
 async function loadAll(){
   loadCache();
   renderAll();
+  // Load dismissed from GAS (async, before inbox poller starts)
+  loadDismissed();
   setTimeout(async function(){
     setSync('sync');
     try{
@@ -489,7 +491,10 @@ async function loadAll(){
       prospects=p;
       actLog=a;
       pipeline=pl;
-      manualProspects=mp;
+      // Merge ManualProspects: keep any local entries not yet in GAS to prevent wipe
+      var gasIds=mp.map(function(x){return x.id;});
+      var localOnly=manualProspects.filter(function(x){return !gasIds.includes(x.id);});
+      manualProspects=mp.concat(localOnly);
       if(!tasks.length)seedTasks();
       setSync('ok');
       renderAll();
@@ -504,12 +509,26 @@ async function loadAll(){
 // INBOX AUTO-POLL
 // =====================
 
-function loadDismissed(){
-  try{inboxDismissed=JSON.parse(localStorage.getItem(DISMISSED_KEY)||'[]');}catch(e){inboxDismissed=[];}
+async function loadDismissed(){
+  // Load from GAS first (persistent), fall back to localStorage
+  try{
+    var rows=await gasRead('Dismissed');
+    if(rows&&rows.length){
+      inboxDismissed=rows.map(function(r){return r.id||r;}).filter(Boolean);
+    } else {
+      inboxDismissed=JSON.parse(localStorage.getItem(DISMISSED_KEY)||'[]');
+    }
+  }catch(e){
+    try{inboxDismissed=JSON.parse(localStorage.getItem(DISMISSED_KEY)||'[]');}catch(e2){inboxDismissed=[];}
+  }
 }
 
 function saveDismissed(){
+  // Save to both localStorage (instant) and GAS sheet (persistent)
   try{localStorage.setItem(DISMISSED_KEY,JSON.stringify(inboxDismissed));}catch(e){}
+  // Save to GAS Dismissed sheet
+  var rows=inboxDismissed.map(function(id){return {id:id};});
+  fetch(GAS,{method:'POST',body:JSON.stringify({action:'write',sheet:'Dismissed',data:rows}),headers:{'Content-Type':'text/plain'}}).catch(function(){});
 }
 
 async function learnEmail(e){
@@ -525,16 +544,18 @@ async function learnEmail(e){
   };
   try{
     await fetch(GAS,{method:'POST',body:JSON.stringify({action:'write',sheet:'Learned',data:[entry]}),headers:{'Content-Type':'text/plain'}});
-    dismissEmail(e.id);
-    toast('Learned. The inbox will recognise this pattern going forward.');
+    // Learn saves training data but does NOT dismiss the email
+    // User must click Done separately to dismiss
+    toast('Learned. Click Done to dismiss this email.');
   }catch(err){toast('Could not save. Try again.');}
 }
-function dismissEmail(id){
+
+function dismissEmail(id, showToast){
   if(!inboxDismissed.includes(id))inboxDismissed.push(id);
   saveDismissed();
   renderInbox();
   updateInboxBadge();
-  toast('Dismissed');
+  if(showToast!==false)toast('Dismissed');
 }
 
 function restoreEmail(id){
@@ -1440,6 +1461,9 @@ function renderInbox(){
         document.getElementById('t-nts').value='From: '+(e.sender||'')+'. '+(e.summary||'').slice(0,120);
         document.getElementById('mbTask').classList.add('open');
         setTimeout(function(){document.getElementById('t-ttl').focus()},50);
+        // Auto-dismiss the email when task is created
+        dismissEmail(eid, false);
+        toast('Task created and email dismissed');
       }));
       acts.appendChild(mkb('Log to pipeline',function(){
         var parts=(e.sender||'').split(' - ');
@@ -1507,3 +1531,4 @@ loadAll();
 </script>
 </body>
 </html>
+
