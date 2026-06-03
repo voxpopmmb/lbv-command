@@ -441,14 +441,30 @@ async function gasRead(sheet){
   }catch(e){clearTimeout(tid);throw e;}
 }
 
-function gasWrite(sheet,data){
-  // Fire and forget - update UI immediately, GAS saves in background
+async function gasWrite(sheet,data){
+  // Save to localStorage immediately so data is never lost on refresh
   setSync('sync');
+  // Update in-memory and cache first
+  if(sheet==='Tasks')tasks=data;
+  if(sheet==='Prospects')prospects=data;
+  if(sheet==='Activity')actLog=data;
+  if(sheet==='Pipeline')pipeline=data;
+  if(sheet==='ManualProspects')manualProspects=data;
   saveCache();
-  fetch(GAS,{method:'POST',body:JSON.stringify({action:'write',sheet:sheet,data:data}),headers:{'Content-Type':'text/plain'}})
-    .then(function(){setSync('ok');})
-    .catch(function(){setSync('err');});
-  return Promise.resolve({ok:true});
+  // Then persist to GAS with retry
+  var attempts=0;
+  while(attempts<3){
+    try{
+      var r=await fetch(GAS,{method:'POST',body:JSON.stringify({action:'write',sheet:sheet,data:data}),headers:{'Content-Type':'text/plain'}});
+      var resp=await r.json();
+      setSync('ok');
+      return {ok:true};
+    }catch(e){
+      attempts++;
+      if(attempts>=3){setSync('err');return {ok:false};}
+      await new Promise(function(res){setTimeout(res,1000*attempts);});
+    }
+  }
 }
 
 function saveCache(){
@@ -457,6 +473,7 @@ function saveCache(){
     localStorage.setItem('lbv_p',JSON.stringify(prospects));
     localStorage.setItem('lbv_a',JSON.stringify(actLog));
     localStorage.setItem('lbv_pl',JSON.stringify(pipeline));
+    localStorage.setItem('lbv_mp',JSON.stringify(manualProspects));
   }catch(e){}
 }
 
@@ -465,6 +482,7 @@ function loadCache(){
   prospects=JSON.parse(localStorage.getItem('lbv_p')||'[]');
   actLog=JSON.parse(localStorage.getItem('lbv_a')||'[]');
   pipeline=JSON.parse(localStorage.getItem('lbv_pl')||'[]');
+  manualProspects=JSON.parse(localStorage.getItem('lbv_mp')||'[]');
   if(!tasks.length)seedTasks();
 }
 
@@ -480,28 +498,35 @@ function seedTasks(){
 async function loadAll(){
   loadCache();
   renderAll();
-  // Load dismissed from GAS (async, before inbox poller starts)
   loadDismissed();
   setTimeout(async function(){
     setSync('sync');
     try{
       var res=await Promise.all([gasRead('Tasks'),gasRead('Prospects'),gasRead('Activity'),gasRead('Pipeline'),gasRead('ManualProspects')]);
       var t=res[0],p=res[1],a=res[2],pl=res[3],mp=res[4];
-      tasks=t.map(function(r){return Object.assign({},r,{done:r.done==='TRUE'||r.done===true})});
-      prospects=p;
-      actLog=a;
-      pipeline=pl;
-      // Merge ManualProspects: keep any local entries not yet in GAS to prevent wipe
-      var gasIds=mp.map(function(x){return x.id;});
-      var localOnly=manualProspects.filter(function(x){return !gasIds.includes(x.id);});
-      manualProspects=mp.concat(localOnly);
+
+      // Merge function: GAS is source of truth, but preserve local items not yet in GAS
+      function mergeData(gasData, localData){
+        var gasIds=gasData.map(function(x){return x.id;});
+        var localOnly=localData.filter(function(x){return x.id && !gasIds.includes(x.id);});
+        return gasData.concat(localOnly);
+      }
+
+      tasks=mergeData(
+        t.map(function(r){return Object.assign({},r,{done:r.done==='TRUE'||r.done===true})}),
+        tasks
+      );
+      prospects=mergeData(p, prospects);
+      actLog=mergeData(a, actLog);
+      pipeline=mergeData(pl, pipeline);
+      manualProspects=mergeData(mp, manualProspects);
+
       if(!tasks.length)seedTasks();
       setSync('ok');
       renderAll();
       saveCache();
     }catch(e){setSync('err','Offline');}
   },1000);
-  // Start inbox poller after 2 seconds
   setTimeout(initInboxPoller,2000);
 }
 
