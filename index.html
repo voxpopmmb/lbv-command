@@ -666,15 +666,16 @@ function nav(p){
   if(p==='tracker')renderActHistory();
 }
 
+function safeRun(fn){try{fn();}catch(e){console.warn('render error:',e.message);}}
 function renderAll(){
-  renderRoutine();
-  renderToday();
-  renderBoard();
-  renderProspects();
-  updateStats();
-  renderPipeline();
-  renderManualProspects();
-  buildAlerts();
+  safeRun(renderRoutine);
+  safeRun(renderToday);
+  safeRun(renderBoard);
+  safeRun(renderProspects);
+  safeRun(updateStats);
+  safeRun(renderPipeline);
+  safeRun(renderManualProspects);
+  safeRun(buildAlerts);
 }
 
 function setPipeTab(tab,btn){
@@ -1287,11 +1288,11 @@ function renderPipeline(){
   var sv=pipeline.filter(function(e){return ['Survey booked','Survey done','Quoted','Order won'].indexOf(e.stage)>=0}).length;
   var sd=pipeline.filter(function(e){return ['Survey done','Quoted','Order won'].indexOf(e.stage)>=0}).length;
   var ow=pipeline.filter(function(e){return e.stage==='Order won'}).length;
-  document.getElementById('pl-tot').textContent=pipeline.length;
-  document.getElementById('pl-sv').textContent=sv;
-  document.getElementById('pl-sd').textContent=sd;
-  document.getElementById('pl-ow').textContent=ow;
-  document.getElementById('b-pipeline').textContent=pipeline.length;
+  var ePlTot=document.getElementById('pl-tot');if(ePlTot)ePlTot.textContent=pipeline.length;
+  var ePlSv=document.getElementById('pl-sv');if(ePlSv)ePlSv.textContent=sv;
+  var ePlSd=document.getElementById('pl-sd');if(ePlSd)ePlSd.textContent=sd;
+  var ePlOw=document.getElementById('pl-ow');if(ePlOw)ePlOw.textContent=ow;
+  var ePlBadge=document.getElementById('b-pipeline');if(ePlBadge)ePlBadge.textContent=pipeline.length;
   var stages=['Active','Replied','Interested','Survey booked','Survey done','Quoted','Order won','Bounced','Finished'];
   var stageColors={'Active':'var(--mut)','Replied':'var(--blu)','Interested':'var(--amb)','Survey booked':'var(--amb)','Survey done':'var(--grn2)','Quoted':'var(--grn)','Order won':'var(--acc)','Bounced':'var(--red)','Finished':'var(--mut)'};
   var html='';
