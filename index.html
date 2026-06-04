@@ -437,7 +437,7 @@ async function gasRead(sheet){
     var r=await fetch(GAS,{method:'POST',body:JSON.stringify({action:'read',sheet:sheet}),headers:{'Content-Type':'text/plain'},signal:ctrl.signal});
     clearTimeout(tid);
     var d=await r.json();
-    return d.data||[];
+    return Array.isArray(d)?d:(d.data||[]);
   }catch(e){clearTimeout(tid);throw e;}
 }
 
