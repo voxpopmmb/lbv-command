@@ -916,10 +916,12 @@ function prospHTML(p){
   return html;
 }
 function renderProspects(){
+  var el=document.getElementById('prosplist');
+  if(!el)return;
   var p=prospects;
   if(prospFilt==='LinkedIn')p=prospects.filter(function(x){return x.channel==='LinkedIn'});
   else if(prospFilt==='Apollo')p=prospects.filter(function(x){return x.channel==='Apollo'});
-  document.getElementById('prosplist').innerHTML=p.length?p.map(prospHTML).join(''):'<div class="empty">No prospects logged yet.</div>';
+  el.innerHTML=p.length?p.map(prospHTML).join(''):'<div class="empty">No prospects logged yet.</div>';
 }
 function filtProsp(f,btn){
   prospFilt=f;
