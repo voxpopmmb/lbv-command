@@ -442,20 +442,19 @@ async function gasRead(sheet){
 }
 
 async function gasWrite(sheet,data){
-  // Save to localStorage immediately so data is never lost on refresh
+  // GAS is the only source of truth - upsert rows by ID, never replace the whole sheet
   setSync('sync');
-  // Update in-memory and cache first
+  // Update in-memory only (no localStorage)
   if(sheet==='Tasks')tasks=data;
   if(sheet==='Prospects')prospects=data;
   if(sheet==='Activity')actLog=data;
   if(sheet==='Pipeline')pipeline=data;
   if(sheet==='ManualProspects')manualProspects=data;
-  saveCache();
-  // Then persist to GAS with retry
+  // Persist to GAS - server side handles upsert by ID
   var attempts=0;
   while(attempts<3){
     try{
-      var r=await fetch(GAS,{method:'POST',body:JSON.stringify({action:'write',sheet:sheet,data:data}),headers:{'Content-Type':'text/plain'}});
+      var r=await fetch(GAS,{method:'POST',body:JSON.stringify({action:'upsert',sheet:sheet,data:data}),headers:{'Content-Type':'text/plain'}});
       var resp=await r.json();
       setSync('ok');
       return {ok:true};
@@ -468,22 +467,11 @@ async function gasWrite(sheet,data){
 }
 
 function saveCache(){
-  try{
-    localStorage.setItem('lbv_t',JSON.stringify(tasks));
-    localStorage.setItem('lbv_p',JSON.stringify(prospects));
-    localStorage.setItem('lbv_a',JSON.stringify(actLog));
-    localStorage.setItem('lbv_pl',JSON.stringify(pipeline));
-    localStorage.setItem('lbv_mp',JSON.stringify(manualProspects));
-  }catch(e){}
+  // No-op: GAS is the source of truth. localStorage is not used for data.
 }
 
 function loadCache(){
-  tasks=JSON.parse(localStorage.getItem('lbv_t')||'[]');
-  prospects=JSON.parse(localStorage.getItem('lbv_p')||'[]');
-  actLog=JSON.parse(localStorage.getItem('lbv_a')||'[]');
-  pipeline=JSON.parse(localStorage.getItem('lbv_pl')||'[]');
-  manualProspects=JSON.parse(localStorage.getItem('lbv_mp')||'[]');
-  if(!tasks.length)seedTasks();
+  // No-op: data always comes from GAS on load. No localStorage fallback.
 }
 
 function seedTasks(){
@@ -496,38 +484,26 @@ function seedTasks(){
 }
 
 async function loadAll(){
-  loadCache();
-  renderAll();
+  // Show loading state immediately, then fetch GAS before rendering
+  setSync('sync');
   loadDismissed();
-  setTimeout(async function(){
-    setSync('sync');
-    try{
-      var res=await Promise.all([gasRead('Tasks'),gasRead('Prospects'),gasRead('Activity'),gasRead('Pipeline'),gasRead('ManualProspects')]);
-      var t=res[0],p=res[1],a=res[2],pl=res[3],mp=res[4];
+  try{
+    var res=await Promise.all([gasRead('Tasks'),gasRead('Prospects'),gasRead('Activity'),gasRead('Pipeline'),gasRead('ManualProspects')]);
+    var t=res[0],p=res[1],a=res[2],pl=res[3],mp=res[4];
 
-      // Merge function: GAS is source of truth, but preserve local items not yet in GAS
-      function mergeData(gasData, localData){
-        var gasIds=gasData.map(function(x){return x.id;});
-        var localOnly=localData.filter(function(x){return x.id && !gasIds.includes(x.id);});
-        return gasData.concat(localOnly);
-      }
+    // GAS is the only source of truth - no merge with local state needed
+    tasks=t.map(function(r){return Object.assign({},r,{done:r.done==='TRUE'||r.done===true});});
+    prospects=p;
+    actLog=a;
+    pipeline=pl;
+    manualProspects=mp;
 
-      tasks=mergeData(
-        t.map(function(r){return Object.assign({},r,{done:r.done==='TRUE'||r.done===true})}),
-        tasks
-      );
-      prospects=mergeData(p, prospects);
-      actLog=mergeData(a, actLog);
-      pipeline=mergeData(pl, pipeline);
-      manualProspects=mergeData(mp, manualProspects);
-
-      if(!tasks.length)seedTasks();
-      setSync('ok');
-      renderAll();
-      saveCache();
-    }catch(e){setSync('err','Offline');}
-  },1000);
-  setTimeout(initInboxPoller,2000);
+    setSync('ok');
+  }catch(e){
+    setSync('err','Offline');
+  }
+  renderAll();
+  setTimeout(initInboxPoller,1000);
 }
 
 // =====================
