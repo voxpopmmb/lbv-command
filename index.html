@@ -1399,7 +1399,7 @@ async function delPipe(id){
   if(!confirm('Remove this entry?'))return;
   pipeline=pipeline.filter(function(e){return e.id!==id});
   renderPipeline();
-  await gasWrite('Pipeline',pipeline);
+  await fetch(GAS,{method:'POST',body:JSON.stringify({action:'delete',sheet:'Pipeline',id:id}),headers:{'Content-Type':'text/plain'}});
   toast('Removed');
 }
 
