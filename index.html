@@ -1188,8 +1188,9 @@ async function addSugg(i){
 
 // ACTIVITY
 async function saveAct(){
-  var entry={date:today(),li_sent:document.getElementById('li-s').value||'0',li_accept:document.getElementById('li-a').value||'0',li_reply:document.getElementById('li-r').value||'0',ap_sent:document.getElementById('ap-s').value||'0',ap_open:document.getElementById('ap-o').value||'0',ap_reply:document.getElementById('ap-r').value||'0',notes:''};
-  var idx=actLog.findIndex(function(a){return a.date===entry.date});
+  var d=today();
+  var entry={id:'act_'+d,date:d,li_sent:document.getElementById('li-s').value||'0',li_accept:document.getElementById('li-a').value||'0',li_reply:document.getElementById('li-r').value||'0',ap_sent:document.getElementById('ap-s').value||'0',ap_open:document.getElementById('ap-o').value||'0',ap_reply:document.getElementById('ap-r').value||'0',notes:''};
+  var idx=actLog.findIndex(function(a){return a.date===d||a.id==='act_'+d});
   if(idx>=0)actLog[idx]=entry;else actLog.unshift(entry);
   renderActHistory();
   await gasWrite('Activity',actLog);
