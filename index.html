@@ -646,15 +646,13 @@ async function pollInbox(){
 
     var items=gasData.items||[];
     if(items.length){
-      // Always reload dismissed from localStorage before rendering
-      // This ensures dismissed emails never resurface after a poll
-      try{inboxDismissed=JSON.parse(localStorage.getItem(DISMISSED_KEY)||'[]');}catch(e){}
+      // Do NOT reload dismissed here - it wipes what user has dismissed this session
+      // dismissed list is managed by dismissEmail/loadDismissed only
       inbox=items;
       try{await gasWrite('Inbox',items);}catch(e){}
       renderInbox();
       updateInboxBadge();
     } else {
-      try{inboxDismissed=JSON.parse(localStorage.getItem(DISMISSED_KEY)||'[]');}catch(e){}
       setPollStatus('ok','No new actionable emails');
     }
 
