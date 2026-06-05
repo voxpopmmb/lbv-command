@@ -1299,7 +1299,11 @@ async function addSugg(i){
 async function saveAct(){
   var d=today();
   var entry={id:'act_'+d,date:d,li_sent:document.getElementById('li-s').value||'0',li_accept:document.getElementById('li-a').value||'0',li_reply:document.getElementById('li-r').value||'0',ap_sent:document.getElementById('ap-s').value||'0',ap_open:document.getElementById('ap-o').value||'0',ap_reply:document.getElementById('ap-r').value||'0',notes:''};
-  var idx=actLog.findIndex(function(a){return a.date===d||a.id==='act_'+d});
+  // Match on date prefix to handle ISO timestamp dates from old entries
+  var idx=actLog.findIndex(function(a){
+    var ad=String(a.date||'');
+    return ad===d||ad.startsWith(d)||a.id==='act_'+d;
+  });
   if(idx>=0)actLog[idx]=entry;else actLog.unshift(entry);
   renderActHistory();
   await gasWrite('Activity',actLog);
@@ -1307,11 +1311,17 @@ async function saveAct(){
 }
 function renderActHistory(){
   var el=document.getElementById('acthistory');
-  var recent=actLog.slice(0,7);
+  // Sort by date descending before display
+  var sorted=actLog.slice().sort(function(a,b){
+    return new Date(b.date||0)-new Date(a.date||0);
+  });
+  var recent=sorted.slice(0,7);
   if(!recent.length){el.innerHTML='<div class="empty">No activity logged yet.</div>';return;}
   var html='<div class="lh"><span>Date</span><span>LI Sent</span><span>LI Accept</span><span>LI Reply</span><span>AP Sent</span><span>AP Open</span><span>AP Reply</span></div>';
   recent.forEach(function(a){
-    html+='<div class="lr"><div class="ll">'+a.date+'</div>';
+    // Format date cleanly
+    var dispDate=a.date?new Date(a.date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):a.date;
+    html+='<div class="lr"><div class="ll">'+dispDate+'</div>';
     ['li_sent','li_accept','li_reply','ap_sent','ap_open','ap_reply'].forEach(function(k){html+='<div style="text-align:center;font-size:12px">'+(a[k]||0)+'</div>';});
     html+='</div>';
   });
