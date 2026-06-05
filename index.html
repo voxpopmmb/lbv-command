@@ -1121,7 +1121,44 @@ async function runIntelBrief(){
       }
     });
 
-    // 3. LINKEDIN: Acceptances logged in activity tracker with no follow up
+    // 3. APOLLO INTENT SIGNALS: Pull openers, clickers, repliers from last 14 days
+    try{
+      var intentResp=await fetch(GAS,{method:'POST',body:JSON.stringify({action:'intentSignals'}),headers:{'Content-Type':'text/plain'}});
+      var intentData=await intentResp.json();
+      var intentSignals=intentData.signals||[];
+
+      // Dedupe by contact email, prioritise replied > clicked > opened
+      var intentMap={};
+      intentSignals.forEach(function(s){
+        var key=s.contactEmail||s.contactName;
+        if(!key)return;
+        var existing=intentMap[key];
+        var rank=s.signal==='replied'?3:s.signal==='clicked'?2:1;
+        if(!existing||rank>(existing.rank||0)){
+          intentMap[key]=Object.assign({},s,{rank:rank});
+        }
+      });
+
+      Object.values(intentMap).forEach(function(s){
+        var priority=s.signal==='replied'?'hot':s.signal==='clicked'?'hot':'warm';
+        var icon=s.signal==='replied'?'💬':s.signal==='clicked'?'🖱️':'👁️';
+        var action=s.signal==='replied'?'Replied to your email':
+                   s.signal==='clicked'?'Clicked your email link':
+                   'Opened your email';
+        signals.push({
+          priority:priority,
+          icon:icon,
+          action:action,
+          name:s.contactName||s.contactEmail,
+          company:s.company||s.sequenceName||'Apollo sequence',
+          detail:(s.contactName||s.contactEmail)+(s.company?' at '+s.company:'')+' '+action.toLowerCase()+'. Call them today.',
+          cta:'Open LinkedIn',
+          ctaFn:"window.open('https://www.linkedin.com/search/results/people/?keywords='+encodeURIComponent('"+(s.contactName||'')+"'),'_blank')"
+        });
+      });
+    }catch(e){}
+
+    // 4. LINKEDIN: Acceptances logged in activity tracker with no follow up
     var recentAccepts=0;
     var cutoff=new Date(today.getTime()-7*24*60*60*1000);
     actLog.forEach(function(a){
