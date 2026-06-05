@@ -1130,15 +1130,29 @@ async function runIntelBrief(){
       if(!isNaN(d)&&d>=cutoff&&accepts>0)recentAccepts+=accepts;
     });
     if(recentAccepts>0){
+      // Try to find names from LinkedIn acceptance emails in inbox
+      var acceptNames=[];
+      inbox.forEach(function(e){
+        var subj=(e.subject||'').toLowerCase();
+        var recv=new Date(e.received||0);
+        if(recv>=cutoff&&(subj.includes('accepted your invitation')||subj.includes('accepted your connection'))){
+          var name=e.subject.split(' accepted')[0].trim();
+          if(name&&name.length<60)acceptNames.push(name);
+        }
+      });
+      var detail=recentAccepts+' connection'+(recentAccepts>1?'s':'')+' accepted in the last 7 days. Send a warm follow-up message to each.';
+      if(acceptNames.length>0){
+        detail='Accepted: '+acceptNames.join(', ')+'. Send each a warm follow-up message now.';
+      }
       signals.push({
         priority:'warm',
         icon:'🤝',
         action:'LinkedIn acceptances need follow-up message',
         name:recentAccepts+' new connection'+(recentAccepts>1?'s':''),
         company:'LinkedIn',
-        detail:recentAccepts+' connection'+(recentAccepts>1?'s':'')+' accepted in the last 7 days. Send a warm follow-up message to each.',
-        cta:'View activity',
-        ctaFn:"nav('tracker')"
+        detail:detail,
+        cta:'Open LinkedIn',
+        ctaFn:"window.open('https://www.linkedin.com/messaging/','_blank')"
       });
     }
 
