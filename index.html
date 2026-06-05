@@ -1169,14 +1169,36 @@ async function runIntelBrief(){
     if(recentAccepts>0){
       // Try to find names from LinkedIn acceptance emails in inbox
       var acceptPeople=[];
-      inbox.forEach(function(e){
-        var subj=(e.subject||'');
-        var recv=new Date(e.received||0);
-        if(recv>=cutoff&&(subj.toLowerCase().includes('accepted your invitation')||subj.toLowerCase().includes('accepted your connection'))){
-          var name=subj.split(' accepted')[0].trim();
-          if(name&&name.length<60)acceptPeople.push(name);
-        }
-      });
+      // Check all inbox emails including dismissed ones for acceptance notifications
+      var allInbox=inbox.concat(
+        inboxDismissed.map(function(id){
+          return {id:id}; // placeholder, we need full data
+        })
+      );
+      // Actually fetch from GAS inbox sheet to get all emails
+      try{
+        var inboxSheetResp=await fetch(GAS,{method:'POST',body:JSON.stringify({action:'read',sheet:'Inbox'}),headers:{'Content-Type':'text/plain'}});
+        var inboxSheet=await inboxSheetResp.json();
+        var allEmails=Array.isArray(inboxSheet)?inboxSheet:inbox;
+        allEmails.forEach(function(e){
+          var subj=(e.subject||'');
+          var recv=new Date(e.received||e.syncedAt||0);
+          if(recv>=cutoff&&(subj.toLowerCase().includes('accepted your invitation')||subj.toLowerCase().includes('accepted your connection'))){
+            var name=subj.split(' accepted')[0].trim();
+            if(name&&name.length<60&&acceptPeople.indexOf(name)<0)acceptPeople.push(name);
+          }
+        });
+      }catch(e2){
+        // Fallback to in-memory inbox
+        inbox.forEach(function(e){
+          var subj=(e.subject||'');
+          var recv=new Date(e.received||0);
+          if(recv>=cutoff&&(subj.toLowerCase().includes('accepted your invitation')||subj.toLowerCase().includes('accepted your connection'))){
+            var name=subj.split(' accepted')[0].trim();
+            if(name&&name.length<60&&acceptPeople.indexOf(name)<0)acceptPeople.push(name);
+          }
+        });
+      }
 
       if(acceptPeople.length>0){
         // Create individual signal per person
