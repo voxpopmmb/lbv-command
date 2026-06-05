@@ -256,6 +256,7 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fnt);font-size:14px
         <div class="lh"><span>Channel</span><span>Sent</span><span>Accepted</span><span>Replied</span><span>Sent</span><span>Opened</span><span>Replied</span></div>
         <div class="lr"><div class="ll" style="color:#0a8af7">LinkedIn</div><input class="li" id="li-s" type="number" min="0" placeholder="0"/><input class="li" id="li-a" type="number" min="0" placeholder="0"/><input class="li" id="li-r" type="number" min="0" placeholder="0"/><div></div><div></div><div></div></div>
         <div class="lr"><div class="ll" style="color:#4f7fff">Apollo email</div><div></div><div></div><div></div><input class="li" id="ap-s" type="number" min="0" placeholder="0"/><input class="li" id="ap-o" type="number" min="0" placeholder="0"/><input class="li" id="ap-r" type="number" min="0" placeholder="0"/></div>
+        <div style="margin-top:12px"><div style="font-size:11px;color:var(--mut);margin-bottom:6px;font-weight:600">ACCEPTED NAMES (paste names, comma separated)</div><input type="text" id="li-accept-names" placeholder="e.g. John Smith, Sarah Jones" style="width:100%;background:var(--sur);border:1px solid var(--brd);border-radius:6px;padding:8px 10px;color:var(--txt);font-size:13px"/></div>
       </div>
       <div class="sec"><div class="stitle">Last 7 days</div><div id="acthistory"><div class="empty">No activity logged yet.</div></div></div>
     </div>
@@ -1169,36 +1170,15 @@ async function runIntelBrief(){
     if(recentAccepts>0){
       // Try to find names from LinkedIn acceptance emails in inbox
       var acceptPeople=[];
-      // Check all inbox emails including dismissed ones for acceptance notifications
-      var allInbox=inbox.concat(
-        inboxDismissed.map(function(id){
-          return {id:id}; // placeholder, we need full data
-        })
-      );
-      // Actually fetch from GAS inbox sheet to get all emails
-      try{
-        var inboxSheetResp=await fetch(GAS,{method:'POST',body:JSON.stringify({action:'read',sheet:'Inbox'}),headers:{'Content-Type':'text/plain'}});
-        var inboxSheet=await inboxSheetResp.json();
-        var allEmails=Array.isArray(inboxSheet)?inboxSheet:inbox;
-        allEmails.forEach(function(e){
-          var subj=(e.subject||'');
-          var recv=new Date(e.received||e.syncedAt||0);
-          if(recv>=cutoff&&(subj.toLowerCase().includes('accepted your invitation')||subj.toLowerCase().includes('accepted your connection'))){
-            var name=subj.split(' accepted')[0].trim();
-            if(name&&name.length<60&&acceptPeople.indexOf(name)<0)acceptPeople.push(name);
-          }
-        });
-      }catch(e2){
-        // Fallback to in-memory inbox
-        inbox.forEach(function(e){
-          var subj=(e.subject||'');
-          var recv=new Date(e.received||0);
-          if(recv>=cutoff&&(subj.toLowerCase().includes('accepted your invitation')||subj.toLowerCase().includes('accepted your connection'))){
-            var name=subj.split(' accepted')[0].trim();
-            if(name&&name.length<60&&acceptPeople.indexOf(name)<0)acceptPeople.push(name);
-          }
-        });
-      }
+      actLog.forEach(function(a){
+        var d=new Date(a.date||0);
+        if(d>=cutoff&&a.accept_names){
+          a.accept_names.split(',').forEach(function(n){
+            var name=n.trim();
+            if(name&&acceptPeople.indexOf(name)<0)acceptPeople.push(name);
+          });
+        }
+      });
 
       if(acceptPeople.length>0){
         // Create individual signal per person
@@ -1320,8 +1300,8 @@ async function addSugg(i){
 // ACTIVITY
 async function saveAct(){
   var d=today();
-  var entry={id:'act_'+d,date:d,li_sent:document.getElementById('li-s').value||'0',li_accept:document.getElementById('li-a').value||'0',li_reply:document.getElementById('li-r').value||'0',ap_sent:document.getElementById('ap-s').value||'0',ap_open:document.getElementById('ap-o').value||'0',ap_reply:document.getElementById('ap-r').value||'0',notes:''};
-  // Match on date prefix to handle ISO timestamp dates from old entries
+  var acceptNames=document.getElementById('li-accept-names');
+  var entry={id:'act_'+d,date:d,li_sent:document.getElementById('li-s').value||'0',li_accept:document.getElementById('li-a').value||'0',li_reply:document.getElementById('li-r').value||'0',ap_sent:document.getElementById('ap-s').value||'0',ap_open:document.getElementById('ap-o').value||'0',ap_reply:document.getElementById('ap-r').value||'0',notes:'',accept_names:acceptNames?acceptNames.value:''};
   var idx=actLog.findIndex(function(a){
     var ad=String(a.date||'');
     return ad===d||ad.startsWith(d)||a.id==='act_'+d;
