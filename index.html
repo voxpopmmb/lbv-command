@@ -544,7 +544,7 @@ async function learnEmail(e){
     learned:new Date().toISOString()
   };
   try{
-    await fetch(GAS,{method:'POST',body:JSON.stringify({action:'write',sheet:'Learned',data:[entry]}),headers:{'Content-Type':'text/plain'}});
+    await fetch(GAS,{method:'POST',body:JSON.stringify({action:'upsert',sheet:'Learned',data:[entry]}),headers:{'Content-Type':'text/plain'}});
     // Learn saves training data but does NOT dismiss the email
     // User must click Done separately to dismiss
     toast('Learned. Click Done to dismiss this email.');
