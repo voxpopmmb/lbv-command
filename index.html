@@ -1152,8 +1152,8 @@ async function runIntelBrief(){
           name:s.contactName||s.contactEmail,
           company:s.company||s.sequenceName||'Apollo sequence',
           detail:(s.contactName||s.contactEmail)+(s.company?' at '+s.company:'')+' '+action.toLowerCase()+'. Call them today.',
-          cta:'Open LinkedIn',
-          ctaFn:"window.open('https://www.linkedin.com/search/results/people/?keywords='+encodeURIComponent('"+(s.contactName||'')+"'),'_blank')"
+          cta:'Log to pipeline',
+          ctaFn:"nav('pipeline')"
         });
       });
     }catch(e){}
@@ -1168,29 +1168,43 @@ async function runIntelBrief(){
     });
     if(recentAccepts>0){
       // Try to find names from LinkedIn acceptance emails in inbox
-      var acceptNames=[];
+      var acceptPeople=[];
       inbox.forEach(function(e){
-        var subj=(e.subject||'').toLowerCase();
+        var subj=(e.subject||'');
         var recv=new Date(e.received||0);
-        if(recv>=cutoff&&(subj.includes('accepted your invitation')||subj.includes('accepted your connection'))){
-          var name=e.subject.split(' accepted')[0].trim();
-          if(name&&name.length<60)acceptNames.push(name);
+        if(recv>=cutoff&&(subj.toLowerCase().includes('accepted your invitation')||subj.toLowerCase().includes('accepted your connection'))){
+          var name=subj.split(' accepted')[0].trim();
+          if(name&&name.length<60)acceptPeople.push(name);
         }
       });
-      var detail=recentAccepts+' connection'+(recentAccepts>1?'s':'')+' accepted in the last 7 days. Send a warm follow-up message to each.';
-      if(acceptNames.length>0){
-        detail='Accepted: '+acceptNames.join(', ')+'. Send each a warm follow-up message now.';
+
+      if(acceptPeople.length>0){
+        // Create individual signal per person
+        acceptPeople.forEach(function(name){
+          signals.push({
+            priority:'warm',
+            icon:'🤝',
+            action:'LinkedIn acceptance, send follow-up',
+            name:name,
+            company:'LinkedIn',
+            detail:name+' accepted your connection request. Send a warm message now while you are front of mind.',
+            cta:'View profile',
+            ctaFn:"window.open('https://www.linkedin.com/search/results/people/?keywords='+encodeURIComponent('"+name+"'),'_blank')"
+          });
+        });
+      } else {
+        // No names found, generic signal
+        signals.push({
+          priority:'warm',
+          icon:'🤝',
+          action:'LinkedIn acceptances need follow-up message',
+          name:recentAccepts+' new connection'+(recentAccepts>1?'s':''),
+          company:'LinkedIn',
+          detail:recentAccepts+' connection'+(recentAccepts>1?'s':'')+' accepted in the last 7 days. Send a warm follow-up message to each.',
+          cta:'Open LinkedIn',
+          ctaFn:"window.open('https://www.linkedin.com/messaging/','_blank')"
+        });
       }
-      signals.push({
-        priority:'warm',
-        icon:'🤝',
-        action:'LinkedIn acceptances need follow-up message',
-        name:recentAccepts+' new connection'+(recentAccepts>1?'s':''),
-        company:'LinkedIn',
-        detail:detail,
-        cta:'Open LinkedIn',
-        ctaFn:"window.open('https://www.linkedin.com/messaging/','_blank')"
-      });
     }
 
     // 4. PIPELINE: Quoted stage with no movement
