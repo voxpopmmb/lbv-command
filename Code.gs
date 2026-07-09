@@ -343,17 +343,32 @@ function deleteRow(sheetName, id) {
 function detectLeftCompany(subject, bodyPreview) {
   var text = ((subject || '') + ' ' + (bodyPreview || '')).toLowerCase();
   var patterns = [
-    'no longer works here', 'no longer with', 'no longer employed',
-    'no longer attend', 'no longer at this address', 'no longer active',
-    'is no longer', 'i am no longer', 'i have left', 'has left the company',
-    'please update your records', 'please update your systems',
-    'this email address is no longer', 'no longer monitored',
-    'i have moved on', 'out of the business', 'has left ' ,
-    'this mailbox is no longer', 'address is no longer attended'
+    /no longer work/,              // catches "no longer works here", "no longer work at", "no longer working"
+    /no longer with/,
+    /no longer employed/,
+    /no longer attend/,
+    /no longer at this address/,
+    /no longer active/,
+    /no longer monitored/,
+    /no longer valid/,
+    /is no longer/,
+    /i am no longer/,
+    /i've left/,
+    /i have left/,
+    /has left the company/,
+    /has left \w+/,                // "has left ASL", "has left APT"
+    /please update your (records|systems)/,
+    /this (email address|mailbox) is no longer/,
+    /i have moved on/,
+    /out of the business/,
+    /please (email|contact) [\w.]+@[\w.-]+ (instead|going forward)/,
+    /please redirect .* to/,
+    /resigned from/,
+    /this account (is|has been) closed/
   ];
   var matched = null;
   for (var i = 0; i < patterns.length; i++) {
-    if (text.indexOf(patterns[i]) !== -1) { matched = patterns[i]; break; }
+    if (patterns[i].test(text)) { matched = patterns[i].source; break; }
   }
   if (!matched) return { isLeft: false };
 
