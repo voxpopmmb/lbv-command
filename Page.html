@@ -300,6 +300,10 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fnt);font-size:14px
           <button class="btn" id="ibf-hot" onclick="filtInbox('hot',this)">🔥 Hot</button>
           <button class="btn" id="ibf-warm" onclick="filtInbox('warm',this)">⚡ Warm</button>
           <button class="btn" id="ibf-unread" onclick="filtInbox('unread',this)">Unread</button>
+          <button class="btn" id="ibf-left" onclick="filtInbox('left',this)">⚠ Contact Left</button>
+          <select id="ibf-mailbox" onchange="filtInboxMailbox(this.value)" style="background:var(--card);color:var(--txt);border:1px solid var(--bd);border-radius:6px;padding:6px 10px;font-size:12px;">
+            <option value="all">All mailboxes</option>
+          </select>
         </div>
       </div>
       <div class="ibpoll">
@@ -405,7 +409,7 @@ const SIGNAL_SNOOZED_KEY = 'lbv_signal_snoozed';
 
 let tasks=[], prospects=[], actLog=[], pipeline=[], inbox=[], manualProspects=[];
 let pipeTab='apollo';
-let taskFilt='all', prospFilt='all', inboxFilt='all', editTaskId=null, editProspId=null;
+let taskFilt='all', prospFilt='all', inboxFilt='all', inboxMailboxFilt='all', editTaskId=null, editProspId=null;
 let inboxDismissed=[], showDismissed=false;
 let signalDismissed=[], signalSnoozed={};
 let pollCountdown=POLL_MINS*60, pollCdTimer=null, pollTimer=null;
@@ -1513,7 +1517,9 @@ function renderInbox(){
   else if(inboxFilt==='warm')emails=emails.filter(function(e){return e.urgency==='warm'});
   else if(inboxFilt==='unread')emails=emails.filter(function(e){return e.isRead==='FALSE'||e.isRead===false});
   else if(inboxFilt==='left')emails=emails.filter(function(e){return e.urgency==='left'});
+  if(inboxMailboxFilt!=='all')emails=emails.filter(function(e){return e.mailbox===inboxMailboxFilt});
   emails.sort(function(a,b){return (a.urgency==='left'?-1:0)-(b.urgency==='left'?-1:0)});
+  populateMailboxFilter();
   if(!emails.length){el.innerHTML='<div class="empty">No emails in this view.</div>';}
   else{
     el.innerHTML='';
@@ -1606,6 +1612,29 @@ function filtInbox(f,btn){
   document.querySelectorAll('#pg-inbox .btn').forEach(function(b){b.classList.remove('on')});
   if(btn)btn.classList.add('on');
   renderInbox();
+}
+
+function filtInboxMailbox(v){
+  inboxMailboxFilt=v;
+  renderInbox();
+}
+
+function populateMailboxFilter(){
+  var sel=document.getElementById('ibf-mailbox');
+  if(!sel)return;
+  var mailboxes=[];
+  inbox.forEach(function(e){
+    if(e.mailbox && mailboxes.indexOf(e.mailbox)===-1)mailboxes.push(e.mailbox);
+  });
+  var current=sel.value||'all';
+  var html='<option value="all">All mailboxes</option>';
+  mailboxes.forEach(function(mb){
+    html+='<option value="'+mb+'">'+mb+'</option>';
+  });
+  if(sel.innerHTML!==html){
+    sel.innerHTML=html;
+    sel.value=mailboxes.indexOf(current)!==-1||current==='all'?current:'all';
+  }
 }
 
 document.getElementById('mbTask').addEventListener('click',function(e){if(e.target===this)closeTaskModal()});
