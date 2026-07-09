@@ -631,7 +631,12 @@ async function pollInbox(){
       setPollStatus('ok','No new actionable emails');
     }
     var now=new Date();
-    setPollStatus('ok','Last polled '+now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
+    if(gasData.mailboxErrors && gasData.mailboxErrors.length){
+      var mbErrTxt=gasData.mailboxErrors.map(function(me){return me.mailbox+': '+me.error;}).join(' | ');
+      setPollStatus('err','Some mailboxes not accessible: '+mbErrTxt);
+    } else {
+      setPollStatus('ok','Last polled '+now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
+    }
     var ibsynced=document.getElementById('ibsynced');
     if(ibsynced)ibsynced.textContent='Auto-polls every 30 min · Last: '+now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
   }catch(e){
@@ -1524,6 +1529,12 @@ function renderInbox(){
       header.className='im';header.style.cursor='pointer';
       var badge=document.createElement('span');badge.className='ub '+bc;badge.textContent=bt;
       var sender=document.createElement('span');sender.className='isd';sender.textContent=e.sender||'';
+      if(e.mailbox && e.mailbox!=='sean@ledbyvision.com'){
+        var mbTag=document.createElement('span');
+        mbTag.style.cssText='font-size:10px;color:var(--mut);background:var(--bg);border-radius:4px;padding:1px 6px;margin-left:6px;';
+        mbTag.textContent=e.mailbox;
+        sender.appendChild(mbTag);
+      }
       var date=document.createElement('span');date.className='idate';date.textContent=dt;
       var arr=document.createElement('span');arr.style.cssText='font-size:10px;color:var(--mut)';arr.textContent='▼';
       header.appendChild(badge);header.appendChild(sender);header.appendChild(date);header.appendChild(arr);

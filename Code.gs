@@ -382,45 +382,73 @@ function getEmails() {
         return buildAuthResponse();
       }
     }
-    var url = 'https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$top=50&$orderby=receivedDateTime desc&$select=id,subject,from,receivedDateTime,isRead,bodyPreview,webLink,conversationId';
-    var resp = UrlFetchApp.fetch(url, {
-      headers: {Authorization: 'Bearer ' + token},
-      muteHttpExceptions: true
-    });
-    var data = JSON.parse(resp.getContentText());
-    if (data.error) {
-      if (data.error.code === 'InvalidAuthenticationToken') {
-        props.deleteProperty('ms_access_token');
-        return buildAuthResponse();
+
+    // Mailboxes to poll. 'me' = the OAuth-connected account (sean@ledbyvision.com).
+    // The others require Mail.Read.Shared scope AND delegate/Full Access permission
+    // on these mailboxes already granted in the M365 admin center (Babble task).
+    var mailboxes = [
+      { key: 'me', label: 'sean@ledbyvision.com', url: 'https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages' },
+      { key: 'sean.costello@lbv-mail.co.uk', label: 'sean.costello@lbv-mail.co.uk', url: 'https://graph.microsoft.com/v1.0/users/sean.costello@lbv-mail.co.uk/mailFolders/inbox/messages' },
+      { key: 'sales@ledbyvision.com', label: 'sales@ledbyvision.com', url: 'https://graph.microsoft.com/v1.0/users/sales@ledbyvision.com/mailFolders/inbox/messages' }
+    ];
+
+    var allEmails = [];
+    var mailboxErrors = [];
+
+    for (var mb = 0; mb < mailboxes.length; mb++) {
+      var box = mailboxes[mb];
+      var url = box.url + '?$top=50&$orderby=receivedDateTime desc&$select=id,subject,from,receivedDateTime,isRead,bodyPreview,webLink,conversationId';
+      var resp = UrlFetchApp.fetch(url, {
+        headers: {Authorization: 'Bearer ' + token},
+        muteHttpExceptions: true
+      });
+      var data = JSON.parse(resp.getContentText());
+
+      if (data.error) {
+        if (data.error.code === 'InvalidAuthenticationToken' && box.key === 'me') {
+          props.deleteProperty('ms_access_token');
+          return buildAuthResponse();
+        }
+        // Don't fail the whole poll if one delegated mailbox isn't accessible yet
+        // (e.g. delegate permission not yet granted by Babble) - just skip it and note the error.
+        mailboxErrors.push({ mailbox: box.label, error: data.error.message });
+        continue;
       }
-      return {error: data.error.message};
+
+      var mapped = (data.value || []).map(function(m) {
+        var senderEmail = m.from && m.from.emailAddress ? m.from.emailAddress.address : '';
+        var bodyPreview = m.bodyPreview || '';
+        var leftInfo = detectLeftCompany(m.subject || '', bodyPreview);
+        return {
+          id: m.id,
+          mailbox: box.label,
+          subject: m.subject || '',
+          sender: (m.from && m.from.emailAddress ? m.from.emailAddress.name : '') + ' - ' + (m.from && m.from.emailAddress ? m.from.emailAddress.address.split('@')[1] : ''),
+          senderEmail: senderEmail,
+          received: m.receivedDateTime,
+          summary: bodyPreview.slice(0, 200),
+          isRead: m.isRead,
+          webLink: m.webLink,
+          conversationId: m.conversationId || '',
+          urgency: leftInfo.isLeft ? 'left' : 'info',
+          isProspect: false,
+          newContactEmail: leftInfo.newEmail || '',
+          leftReason: leftInfo.reason || ''
+        };
+      });
+      allEmails = allEmails.concat(mapped);
     }
-    var emails = (data.value || []).map(function(m) {
-      var senderEmail = m.from && m.from.emailAddress ? m.from.emailAddress.address : '';
-      var bodyPreview = m.bodyPreview || '';
-      var leftInfo = detectLeftCompany(m.subject || '', bodyPreview);
-      return {
-        id: m.id,
-        subject: m.subject || '',
-        sender: (m.from && m.from.emailAddress ? m.from.emailAddress.name : '') + ' - ' + (m.from && m.from.emailAddress ? m.from.emailAddress.address.split('@')[1] : ''),
-        senderEmail: senderEmail,
-        received: m.receivedDateTime,
-        summary: bodyPreview.slice(0, 200),
-        isRead: m.isRead,
-        webLink: m.webLink,
-        conversationId: m.conversationId || '',
-        urgency: leftInfo.isLeft ? 'left' : 'info',
-        isProspect: false,
-        newContactEmail: leftInfo.newEmail || '',
-        leftReason: leftInfo.reason || ''
-      };
-    });
-    var leftOnes = emails.filter(function(e){ return e.urgency === 'left'; });
+
+    // Sort merged inbox by received date, newest first
+    allEmails.sort(function(a, b) { return new Date(b.received) - new Date(a.received); });
+
+    var leftOnes = allEmails.filter(function(e){ return e.urgency === 'left'; });
     if (leftOnes.length) {
       try {
         var rows = leftOnes.map(function(e) {
           return {
             id: 'left_' + e.id,
+            mailbox: e.mailbox,
             senderEmail: e.senderEmail,
             senderName: e.sender,
             subject: e.subject,
@@ -432,7 +460,8 @@ function getEmails() {
         upsertSheet('LeftCompany', rows);
       } catch(e2) {}
     }
-    return {items: emails};
+
+    return {items: allEmails, mailboxErrors: mailboxErrors};
   } catch(err) {
     return {error: err.toString()};
   }
@@ -532,7 +561,7 @@ function buildAuthResponse() {
     '?client_id=' + clientId +
     '&response_type=code' +
     '&redirect_uri=' + encodeURIComponent(redirectUri) +
-    '&scope=' + encodeURIComponent('Mail.Read offline_access') +
+    '&scope=' + encodeURIComponent('Mail.Read Mail.Read.Shared offline_access') +
     '&response_mode=query';
   return {needsAuth: true, authUrl: authUrl};
 }
