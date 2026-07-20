@@ -29,6 +29,7 @@ function doPost(e) {
     if (action === 'getSentItems') return respond(getSentItems());
     if (action === 'apollo') return respond(apolloProxy(body.endpoint, body.params));
     if (action === 'intentSignals') return respond(getIntentSignals());
+    if (action === 'linkedinAccepts') return respond(getLinkedInAccepts());
     if (action === 'ai') return respond(aiClassify(body.emails));
     return respond({error: 'Unknown action: ' + action});
   } catch(err) {
@@ -479,6 +480,70 @@ function getEmails() {
     return {items: allEmails, mailboxErrors: mailboxErrors};
   } catch(err) {
     return {error: err.toString()};
+  }
+}
+
+// Scans Inbox AND Deleted Items across all connected mailboxes for LinkedIn
+// "accepted your invitation/connection" notification emails, over a rolling
+// window (default 30 days), so accepts are caught even if:
+//  - the poll missed the exact day the email arrived (only 'today' was checked before)
+//  - the notification email has since been deleted/archived (only Inbox was checked before)
+// Returns a list of {date: 'YYYY-MM-DD', name, mailbox} - one entry per matched email,
+// deduplicated by message id so the same notification is never double-counted.
+function getLinkedInAccepts() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var token = props.getProperty('ms_access_token');
+    if (!token) return { error: 'not_authenticated' };
+
+    var windowDays = 30;
+    var cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - windowDays);
+    var cutoffStr = cutoff.toISOString();
+
+    var mailboxes = [
+      { key: 'me', label: 'sean@ledbyvision.com', base: 'https://graph.microsoft.com/v1.0/me' },
+      { key: 'sean.costello@lbv-mail.co.uk', label: 'sean.costello@lbv-mail.co.uk', base: 'https://graph.microsoft.com/v1.0/users/sean.costello@lbv-mail.co.uk' },
+      { key: 'sales@ledbyvision.com', label: 'sales@ledbyvision.com', base: 'https://graph.microsoft.com/v1.0/users/sales@ledbyvision.com' }
+    ];
+    var folders = ['inbox', 'deleteditems'];
+
+    var seen = {};
+    var results = [];
+    var errors = [];
+
+    for (var mb = 0; mb < mailboxes.length; mb++) {
+      for (var f = 0; f < folders.length; f++) {
+        var url = mailboxes[mb].base + '/mailFolders/' + folders[f] + '/messages'
+          + '?$top=100&$select=id,subject,receivedDateTime'
+          + '&$filter=receivedDateTime ge ' + cutoffStr;
+        var resp = UrlFetchApp.fetch(url, {
+          headers: { Authorization: 'Bearer ' + token },
+          muteHttpExceptions: true
+        });
+        var data = JSON.parse(resp.getContentText());
+        if (data.error) {
+          errors.push({ mailbox: mailboxes[mb].label, folder: folders[f], error: data.error.message });
+          continue;
+        }
+        (data.value || []).forEach(function(m) {
+          var subj = (m.subject || '').toLowerCase();
+          if (subj.indexOf('accepted your invitation') === -1 && subj.indexOf('accepted your connection') === -1) return;
+          if (seen[m.id]) return;
+          seen[m.id] = true;
+          var name = (m.subject || '').split(' accepted')[0].trim();
+          results.push({
+            date: (m.receivedDateTime || '').slice(0, 10),
+            name: name,
+            mailbox: mailboxes[mb].label
+          });
+        });
+      }
+    }
+
+    return { accepts: results, errors: errors, windowDays: windowDays };
+  } catch (err) {
+    return { error: err.toString() };
   }
 }
 

@@ -659,34 +659,48 @@ function initInboxPoller(){
   pollTimer=setInterval(pollInbox,POLL_MINS*60*1000);
 }
 
-// AUTO LOG LINKEDIN ACCEPTS FROM INBOX
+// AUTO LOG LINKEDIN ACCEPTS - scans Inbox + Deleted Items across all mailboxes,
+// over a rolling 30-day window (not just 'today'), so accepts are still caught
+// even if a poll was missed on the day the email arrived, or the notification
+// email has since been deleted/archived.
 async function autoLogLiAccepts(){
   try{
-    var d=today();
-    var liAcceptToday=0;
-    inbox.forEach(function(e){
-      var subj=(e.subject||'').toLowerCase();
-      var recv=new Date(e.received||0);
-      var recvDate=recv.toISOString().slice(0,10);
-      if(recvDate===d&&(subj.includes('accepted your invitation')||subj.includes('accepted your connection'))){
-        liAcceptToday++;
+    var res=await fetch(GAS,{method:'POST',body:JSON.stringify({action:'linkedinAccepts'}),headers:{'Content-Type':'text/plain'}});
+    var data=await res.json();
+    if(data.error){console.warn('linkedinAccepts error:',data.error);return;}
+    var accepts=data.accepts||[];
+    if(!accepts.length)return;
+
+    // Count accepts per calendar day
+    var byDate={};
+    accepts.forEach(function(a){
+      if(!a.date)return;
+      byDate[a.date]=(byDate[a.date]||0)+1;
+    });
+
+    var changed=false;
+    var totalNew=0;
+    Object.keys(byDate).forEach(function(d){
+      var scanned=byDate[d];
+      var existIdx=actLog.findIndex(function(a){return fmtDate(a.date)===d;});
+      if(existIdx>=0){
+        var current=parseInt(actLog[existIdx].li_accept||0);
+        if(scanned>current){
+          totalNew+=(scanned-current);
+          actLog[existIdx].li_accept=String(scanned);
+          changed=true;
+        }
+      } else {
+        actLog.unshift({id:'act_'+d,date:d,li_sent:'0',li_accept:String(scanned),li_reply:'0',ap_sent:'0',ap_open:'0',ap_reply:'0',ap_cumulative:'0',notes:''});
+        totalNew+=scanned;
+        changed=true;
       }
     });
-    if(liAcceptToday===0)return;
-    var existIdx=actLog.findIndex(function(a){return fmtDate(a.date)===d;});
-    if(existIdx>=0){
-      var current=parseInt(actLog[existIdx].li_accept||0);
-      if(liAcceptToday>current){
-        actLog[existIdx].li_accept=String(liAcceptToday);
-        await gasWrite('Activity',actLog);
-        renderActHistory();
-        toast(liAcceptToday+' LinkedIn accept'+(liAcceptToday>1?'s':'')+' auto-logged');
-      }
-    } else {
-      actLog.unshift({id:'act_'+d,date:d,li_sent:'0',li_accept:String(liAcceptToday),li_reply:'0',ap_sent:'0',ap_open:'0',ap_reply:'0',ap_cumulative:'0',notes:''});
+
+    if(changed){
       await gasWrite('Activity',actLog);
       renderActHistory();
-      toast(liAcceptToday+' LinkedIn accept'+(liAcceptToday>1?'s':'')+' auto-logged');
+      toast(totalNew+' LinkedIn accept'+(totalNew===1?'':'s')+' backfilled ('+data.windowDays+'-day scan)');
     }
   }catch(e){console.warn('autoLogLiAccepts error:',e);}
 }
@@ -1327,6 +1341,7 @@ function renderActHistory(){
     var d=fmtDate(a.date);
     if(!seen[d]){seen[d]=true;deduped.push(a);}
   });
+  deduped.sort(function(a,b){return new Date(fmtDate(b.date))-new Date(fmtDate(a.date));});
   var recent=deduped.slice(0,7);
   if(!recent.length){el.innerHTML='<div class="empty">No activity logged yet.</div>';return;}
   var html='<div class="lh"><span>Date</span><span>LI Sent</span><span>LI Accept</span><span>LI Reply</span><span>AP Sent</span><span>AP Open</span><span>AP Reply</span></div>';
